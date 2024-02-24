@@ -1,0 +1,147 @@
+---
+title: "EDGAR"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(httr)
+library(jsonlite)
+library(data.table)
+
+#edgar downloads files locally
+#finreportr gives 403; attemping to debug. Likely approach is manual func's, see below
+# elements from finreportr GAAP parsing will be leveraged
+
+agent <- "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
+
+tickerGet <- GET("https://www.sec.gov/files/company_tickers.json", 
+               user_agent(agent))
+
+tickerData <- content(tickerGet, "text", encoding="UTF-8") %>% 
+  fromJSON()
+
+tickrList <- lapply(tickerData, function(x) unlist(x))
+
+tickrDf <- data.frame(do.call(rbind, tickrList)) %>% 
+  mutate(cik_str = str_pad(cik_str, 10, pad = "0"))
+
+getCIK = function(symbol){
+  subset(tickrDf, tickrDf$ticker == paste(symbol))$cik_str
+}
+
+
+pgAAPL <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("AAPL"),".json"),
+            add_headers(`User-Agent` = agent))
+          
+pgTSLA <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("TSLA"),".json"),
+            add_headers(`User-Agent` = agent))
+
+
+GAAPedgar <- function(rawPage){
+  
+  rawData <- content(rawPage, "text", encoding="UTF-8") %>% 
+    fromJSON(., rawPage, flatten=FALSE)   
+  
+  n = length(rawData$facts$'us-gaap')
+  
+  # code still somewhat voodoo, review at https://github.com/jgQuantScripts/SEC-API-1
+  retGaap <- rbindlist(lapply(as.list(1:n), function(ii){
+    gaap <- as.data.frame(rbindlist(rawData$facts$'us-gaap'[[ii]]$units[[1]],
+                                  use.names = TRUE,
+                                  fill = TRUE))
+    gaap$desc <- names(rawData$facts$'us-gaap')[ii]
+    gaap <- gaap[!duplicated(gaap$end),]
+    gaap$cik <- rawData[['cik']]
+    return(gaap)
+    }
+    ), use.names=TRUE, fill=TRUE)
+  return(retGaap)
+}
+
+gaapTSLA <- GAAPedgar(pgTSLA)
+  
+
+DEIedgar <- function(rawPage){
+  
+  rawData <- content(rawPage, "text", encoding="UTF-8") %>% 
+    fromJSON(., rawPage, flatten=FALSE)   
+  
+  n = length(rawData$facts$dei)
+  
+   if (n == 0) {
+    return(NULL)
+  }
+  
+  retdei <- rbindlist(lapply(as.list(1:n), function(ii){
+    dei <- as.data.frame(rbindlist(rawData$facts$dei[[ii]]$units[[1]],
+                                  use.names = TRUE,
+                                  fill = TRUE))
+    dei$desc <- names(rawData$facts$dei)[ii]
+    dei <- dei[!duplicated(dei$end),]
+    dei$cik <- rawData[['cik']]
+    return(dei)
+    }
+    ), use.names=TRUE, fill=TRUE)
+  return(retdei)
+}
+
+deiAAPL <- DEIedgar(pgAAPL)
+
+INVESTedgar <- function(rawPage){
+  
+  rawData <- content(rawPage, "text", encoding="UTF-8") %>% 
+    fromJSON(., rawPage, flatten=FALSE)   
+  
+  n = length(rawData$facts$invest)
+  
+   if (n == 0) {
+    return(NULL)
+  }
+  
+  retdei <- rbindlist(lapply(as.list(1:n), function(ii){
+    invest <- as.data.frame(rbindlist(rawData$facts$invest[[ii]]$units[[1]],
+                                  use.names = TRUE,
+                                  fill = TRUE))
+    invest$desc <- names(rawData$facts$invest)[ii]
+    invest <- invest[!duplicated(invest$end),]
+    invest$cik <- rawData[['cik']]
+    return(invest)
+    }
+    ), use.names=TRUE, fill=TRUE)
+  return(retinvest)
+}
+
+
+SRTedgar <- function(rawPage){
+  
+  rawData <- content(rawPage, "text", encoding="UTF-8") %>% 
+    fromJSON(., rawPage, flatten=FALSE)   
+  
+  n = length(rawData$facts$srt)
+  
+   if (n == 0) {
+    return(NULL)
+  }
+  
+  retdei <- rbindlist(lapply(as.list(1:n), function(ii){
+    srt <- as.data.frame(rbindlist(rawData$facts$srt[[ii]]$units[[1]],
+                                  use.names = TRUE,
+                                  fill = TRUE))
+    srt$desc <- names(rawData$facts$srt)[ii]
+    srt <- srt[!duplicated(srt$end),]
+    srt$cik <- rawData[['cik']]
+    return(srt)
+    }
+    ), use.names=TRUE, fill=TRUE)
+  return(retsrt)
+}
+
+SRTedgar(pgTSLA)
+
+
+```
+
+
+
