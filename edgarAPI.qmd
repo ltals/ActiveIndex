@@ -14,29 +14,36 @@ library(data.table)
 #finreportr gives 403; attemping to debug. Likely approach is manual func's, see below
 # elements from finreportr GAAP parsing will be leveraged
 
+
+# def user agent to prevent 403
 agent <- "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
 
-tickerGet <- GET("https://www.sec.gov/files/company_tickers.json", 
+
+
+# get list of padded CIKs + tickers
+getCIK_df <- function(){
+  tickerGet <- GET("https://www.sec.gov/files/company_tickers.json", 
                user_agent(agent))
-
-tickerData <- content(tickerGet, "text", encoding="UTF-8") %>% 
-  fromJSON()
-
-tickrList <- lapply(tickerData, function(x) unlist(x))
-
-tickrDf <- data.frame(do.call(rbind, tickrList)) %>% 
-  mutate(cik_str = str_pad(cik_str, 10, pad = "0"))
-
-getCIK = function(symbol){
-  subset(tickrDf, tickrDf$ticker == paste(symbol))$cik_str
+  
+  tickrDf <- content(tickerGet, "text", encoding="UTF-8") %>% 
+  fromJSON() %>% 
+    map_dfr(~as_tibble(.x)) %>% 
+    mutate(cik_str = str_pad(cik_str, 10, pad = "0"))
+  
+  
+  return(tickrDf)
 }
 
 
-pgAAPL <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("AAPL"),".json"),
-            add_headers(`User-Agent` = agent))
-          
-pgTSLA <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("TSLA"),".json"),
-            add_headers(`User-Agent` = agent))
+tickrDf <- getCIK_df()
+
+
+# get padded CIK for desired ticker
+getCIK = function(symbol){
+  #requires df generated in getCIK_df
+  subset(tickrDf, tickrDf$ticker == paste(symbol))$cik_str
+}
+
 
 
 GAAPedgar <- function(rawPage){
@@ -140,8 +147,54 @@ SRTedgar <- function(rawPage){
 
 SRTedgar(pgTSLA)
 
+unique(gaapTSLA$desc)
+
+
+FULLedgar <- function(rawPage){
+  gaap <- GAAPedgar(rawPage)
+  dei <- DEIedgar(rawPage) %>% 
+    mutate(start = NA)
+  invest <- INVESTedgar(rawPage)
+  srt <- SRTedgar(rawPage)
+  
+  return(rbind(gaap, dei, invest, srt))
+}
+
+pgAAPL <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("AAPL"),".json"),
+            add_headers(`User-Agent` = agent))
+
+
+pgTSLA <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("TSLA"),".json"),
+            add_headers(`User-Agent` = agent))
+
+pgBRK <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("BRK-B"),".json"),
+            add_headers(`User-Agent` = agent))
+
+
+pgBRK <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("BRK-B"),".json"),
+            add_headers(`User-Agent` = agent))
+
+
+pgUBER <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("UBER"),".json"),
+            add_headers(`User-Agent` = agent))
+
+
+
+
+
+FULLedgar(pgUBER)
+
+
+
+
+
+    
+
 
 ```
+
+
+
 
 
 
