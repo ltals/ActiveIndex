@@ -54,7 +54,7 @@ GAAPedgar <- function(rawPage){
   n = length(rawData$facts$'us-gaap')
   
   # code still somewhat voodoo, review at https://github.com/jgQuantScripts/SEC-API-1
-  retGaap <- rbindlist(lapply(as.list(1:n), function(ii){
+  rbindlist(lapply(as.list(1:n), function(ii){
     gaap <- as.data.frame(rbindlist(rawData$facts$'us-gaap'[[ii]]$units[[1]],
                                   use.names = TRUE,
                                   fill = TRUE))
@@ -64,11 +64,8 @@ GAAPedgar <- function(rawPage){
     return(gaap)
     }
     ), use.names=TRUE, fill=TRUE)
-  return(retGaap)
 }
 
-gaapTSLA <- GAAPedgar(pgTSLA)
-  
 
 DEIedgar <- function(rawPage){
   
@@ -81,7 +78,7 @@ DEIedgar <- function(rawPage){
     return(NULL)
   }
   
-  retdei <- rbindlist(lapply(as.list(1:n), function(ii){
+  rbindlist(lapply(as.list(1:n), function(ii){
     dei <- as.data.frame(rbindlist(rawData$facts$dei[[ii]]$units[[1]],
                                   use.names = TRUE,
                                   fill = TRUE))
@@ -91,10 +88,8 @@ DEIedgar <- function(rawPage){
     return(dei)
     }
     ), use.names=TRUE, fill=TRUE)
-  return(retdei)
 }
 
-deiAAPL <- DEIedgar(pgAAPL)
 
 INVESTedgar <- function(rawPage){
   
@@ -107,7 +102,7 @@ INVESTedgar <- function(rawPage){
     return(NULL)
   }
   
-  retdei <- rbindlist(lapply(as.list(1:n), function(ii){
+  rbindlist(lapply(as.list(1:n), function(ii){
     invest <- as.data.frame(rbindlist(rawData$facts$invest[[ii]]$units[[1]],
                                   use.names = TRUE,
                                   fill = TRUE))
@@ -132,7 +127,7 @@ SRTedgar <- function(rawPage){
     return(NULL)
   }
   
-  retdei <- rbindlist(lapply(as.list(1:n), function(ii){
+  rbindlist(lapply(as.list(1:n), function(ii){
     srt <- as.data.frame(rbindlist(rawData$facts$srt[[ii]]$units[[1]],
                                   use.names = TRUE,
                                   fill = TRUE))
@@ -144,10 +139,6 @@ SRTedgar <- function(rawPage){
     ), use.names=TRUE, fill=TRUE)
   return(retsrt)
 }
-
-SRTedgar(pgTSLA)
-
-unique(gaapTSLA$desc)
 
 
 FULLedgar <- function(rawPage){
@@ -163,17 +154,11 @@ FULLedgar <- function(rawPage){
 pgAAPL <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("AAPL"),".json"),
             add_headers(`User-Agent` = agent))
 
-
 pgTSLA <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("TSLA"),".json"),
             add_headers(`User-Agent` = agent))
 
 pgBRK <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("BRK-B"),".json"),
             add_headers(`User-Agent` = agent))
-
-
-pgBRK <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("BRK-B"),".json"),
-            add_headers(`User-Agent` = agent))
-
 
 pgUBER <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("UBER"),".json"),
             add_headers(`User-Agent` = agent))
@@ -182,7 +167,9 @@ pgUBER <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", get
 
 
 
-FULLedgar(pgUBER)
+FULLedgar(pgAAPL)
+
+GAAPedgar(pgAAPL)
 
 
 
