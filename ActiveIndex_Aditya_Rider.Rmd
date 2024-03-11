@@ -5,17 +5,259 @@ date: "2024-03-11"
 output: html_document
 ---
 
+```{r, include=FALSE}
+
 # Usernames, Passwords, and Libraries 
 
-```{r}
 library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(gganimate)
+library(hrbrthemes)
+library(viridis)
+library(dplyr)
+library(lubridate)
+library(patchwork)
 ```
 
-# S&P 500 Historical Weights 
+## S&P 500 Historical Weights (Animate this if time) - Stacked and Area Charts 
 
-```{r}
+```{r, echo=FALSE, fig.width=10, fig.height=6}
+
+# Data download and renaming sectors 
+
 SP500_Hist_Weights <- read_excel("C:\\Users\\Aditya Sharma\\OneDrive\\Desktop\\FaT 488 Project 2\\ActiveIndex\\S&P_Hist_Weight.xlsx") %>% 
+  dplyr::rename(Date = Date, 
+                Technology = "S&P 500 INFO TECH INDEX", 
+                Financials = "S&P 500 FINANCIALS INDEX", 
+                Healthcare = "S&P 500 HEALTH CARE IDX", 
+                Discretionary = "S&P 500 CONS DISCRET IDX", 
+                Industrials = "S&P 500 INDUSTRIALS IDX", 
+                Communications = "S&P 500 COMM SVC", 
+                Staples = "S&P 500 CONS STAPLES IDX",
+                Energy = "S&P 500 ENERGY INDEX", 
+                RealEstate = "S&P 500 REAL ESTATE IDX", 
+                Materials = "S&P 500 MATERIALS INDEX", 
+                Utilities = "S&P 500 UTILITIES INDEX") 
+
+# Formatting the date column 
+
+SP500_Hist_Weights$Date <- as.Date(SP500_Hist_Weights$Date)
   
-  
+# Graphing historical S&P500 sector weights 
+
+SP500_Weights_Graphs <- SP500_Hist_Weights %>% 
+  tidyr::pivot_longer(-Date, names_to = "Sectors", values_to = "Weights") %>% 
+  na.omit() %>% 
+  ggplot2::ggplot(aes(x = Date, y = Weights, col = Sectors)) + 
+  geom_line() +
+  theme_minimal() + 
+  theme(axis.line = element_line(color = "black"), 
+        axis.ticks = element_line(color = "black"), 
+        legend.title = element_text(color = "black", size = 10, face = "bold"),
+        axis.title.x = element_text(color = "black", size = 10), 
+        axis.title.y = element_text(color = "black", size = 10)) + 
+  scale_color_discrete(name = "Sectors") + 
+  labs(x = "", y = "Sector Weights") 
+
+# Plotly Graph (Line Chart)
+
+SP500_Weights_Graphs <- ggplotly(SP500_Weights_Graphs)
+
+SP500_Weights_Graphs
+
+
+
+
+# Stacked area chart to show this a bit better 
+
+SP500_Weights_Graphs <- SP500_Hist_Weights %>% 
+  tidyr::pivot_longer(-Date, names_to = "Sectors", values_to = "Weights") %>% 
+  na.omit() %>% 
+  ggplot2::ggplot(aes(x = Date, y = Weights, fill = Sectors)) + 
+  geom_area() +  
+  theme_minimal() + 
+  theme(axis.line = element_line(color = "black"), 
+        axis.ticks = element_line(color = "black"), 
+        legend.title = element_text(color = "black", size = 10, face = "bold"),
+        axis.title.x = element_text(color = "black", size = 10), 
+        axis.title.y = element_text(color = "black", size = 10)) + 
+  scale_fill_discrete(name = "Sectors") + 
+  labs(x = "", y = "Sector Weights")
+
+# Convert ggplot to Plotly (Stacked Area Chart)
+
+SP500_Weights_Graphs <- ggplotly(SP500_Weights_Graphs)
+
+SP500_Weights_Graphs
 ```
+
+## All sectors change in weights over time 
+
+```{r, include=FALSE}
+
+SP500_Weights_Graphs <- SP500_Hist_Weights %>% 
+  tidyr::pivot_longer(-Date, names_to = "Sectors", values_to = "Weights") %>% 
+  na.omit() %>% 
+  dplyr::group_by(Sectors) %>% 
+  dplyr::mutate(Change = Weights - lag(Weights)) %>% 
+  na.omit() %>% 
+  dplyr::mutate(Month = month(Date)) %>% 
+  dplyr::filter(Month == "12")
+
+Tech_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Technology") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Technology") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Tech_change <- ggplotly(Tech_change)
+
+Fin_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Financials") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Financials") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Fin_change <- ggplotly(Fin_change)
+
+Health_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Healthcare") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Health Care") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Health_change <- ggplotly(Health_change)
+
+Discretionary_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Discretionary") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Discretionary") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Discretionary_change <- ggplotly(Discretionary_change)
+
+Industrials_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Industrials") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Industrials") +
+  theme_minimal() + theme(legend.position = "none") 
+
+Industrials_change <- ggplotly(Industrials_change)
+
+Communications_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Communications") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Communications") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Communications_change <- ggplotly(Communications_change)
+
+Staples_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Staples") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Staples") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Energy_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Energy") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Energy") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Energy_change <- ggplotly(Energy_change)
+
+RealEstate_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "RealEstate") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("RealEstate") +
+  theme_minimal() + theme(legend.position = "none")  
+
+RealEstate_change <- ggplotly(RealEstate_change)
+
+Materials_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Materials") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Materials") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Materials_change <- ggplotly(Materials_change)
+
+Utilities_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Utilities") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Utilities") +
+  theme_minimal() + theme(legend.position = "none")
+
+Utilties_change <- ggplotly(Utilities_change)
+
+```
+
+
+
+```{r, echo=FALSE}
+
+Tech_change 
+
+Fin_change 
+
+Health_change 
+
+Discretionary_change 
+
+Industrials_change 
+
+Communications_change
+
+Staples_change 
+
+Energy_change 
+
+RealEstate_change 
+
+Materials_change 
+
+Utilities_change 
+
+```
+
+
+
+
+
 
