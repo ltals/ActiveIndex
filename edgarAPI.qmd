@@ -112,7 +112,6 @@ INVESTedgar <- function(rawPage){
     return(invest)
     }
     ), use.names=TRUE, fill=TRUE)
-  return(retinvest)
 }
 
 
@@ -125,30 +124,61 @@ SRTedgar <- function(rawPage){
   
    if (n == 0) {
     return(NULL)
-  }
-  
-  rbindlist(lapply(as.list(1:n), function(ii){
-    srt <- as.data.frame(rbindlist(rawData$facts$srt[[ii]]$units[[1]],
-                                  use.names = TRUE,
-                                  fill = TRUE))
-    srt$desc <- names(rawData$facts$srt)[ii]
-    srt <- srt[!duplicated(srt$end),]
-    srt$cik <- rawData[['cik']]
-    return(srt)
-    }
-    ), use.names=TRUE, fill=TRUE)
-  return(retsrt)
+   }
 }
 
 
-FULLedgar <- function(rawPage){
-  gaap <- GAAPedgar(rawPage)
-  dei <- DEIedgar(rawPage) %>% 
-    mutate(start = NA)
-  invest <- INVESTedgar(rawPage)
-  srt <- SRTedgar(rawPage)
+IFRSedgar <- function(rawPage){
   
-  return(rbind(gaap, dei, invest, srt))
+  rawData <- content(rawPage, "text", encoding="UTF-8") %>% 
+    fromJSON(., rawPage, flatten=FALSE)   
+  
+  n = length(rawData$facts$srt)
+  
+   if (n == 0) {
+    return(NULL)
+  }
+  
+  rbindlist(lapply(as.list(1:n), function(ii){
+    ifrs <- as.data.frame(rbindlist(rawData$facts$'ifrs-full'[[ii]]$units[[1]],
+                                  use.names = TRUE,
+                                  fill = TRUE))
+    ifrs$desc <- names(rawData$facts$'ifrs-full')[ii]
+    ifrs <- ifrs[!duplicated(ifrs$end),]
+    ifrs$cik <- rawData[['cik']]
+    return(ifrs)
+    }
+    ), use.names=TRUE, fill=TRUE)
+}
+
+FULLedgar <- function(ticker){
+  rawPage <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK",
+                              getCIK(ticker),
+                              ".json"),
+            add_headers(`User-Agent` = agent))
+ 
+ gaap <- GAAPedgar(rawPage)
+  
+    if (!is.null(gaap)) {
+     gaap <- gaap %>% mutate(start = NA,
+                          from = 'gaap')
+  }
+
+  dei <- DEIedgar(rawPage)
+  
+  if (!is.null(dei)) {
+    dei <- dei %>% mutate(start = NA,
+                          from = 'dei')
+  }
+  
+  invest <- INVESTedgar(rawPage)
+  if (!is.null(invest)) {
+    invest <- invest %>% mutate(start = NA,
+                                from = 'invest')
+  }
+
+  
+  return(rbind(gaap, dei, invest))
 }
 
 pgAAPL <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", getCIK("AAPL"),".json"),
@@ -166,22 +196,82 @@ pgUBER <- GET(url = paste0("https://data.sec.gov/api/xbrl/companyfacts/CIK", get
 
 
 
+FULLedgar("TSM")
 
-FULLedgar(pgAAPL)
+slice <- tickrDf %>% 
+  slice(1:100) %>% 
+  filter(!ticker %in% c("TSM", "NVO"))
 
-GAAPedgar(pgAAPL)
+  
+tickerList <- as.list(slice$ticker)
 
 
+tickerList <- as.list(RTLedu::sp500_desc %>% 
+                        slice(1:100)
+                    
+top100s <- RTLedu::sp500_desc %>%
+  slice(1:100) 
+
+tickerList <- as.list(top100s$symbol)
+
+top100 <- data.frame()
+for(ticker in tickerList) {
+  df <- FULLedgar(ticker)
+  top100 <- rbind(top100, df)
+  Sys.sleep(1)
+  }
+
+unique(top100$cik)
+df <- FULLedgar(tickerList[1])
 
 
+tickerList
 
-    
+tickrDf
+
+
+for(i in tickerList) {
+  print(i)
+}
+
+
+72971
+
+top100 <- data.frame(top100)
+
+write_csv(top100, '37sp500components.csv')
+
 
 
 ```
+```{r}
+library(XBRL)
+
+xbrl_url2014 <- "https://www.sec.gov/Archives/edgar/data/320193/000119312514383437/aapl-20140927.xml"
+
+
+test <- GET("https://www.sec.gov/Archives/edgar/data/320193/000119312514383437/aapl-20140927.xml", 
+               user_agent(agent))  
+
+xbrl_data <- xbrlDoAll("https://www.sec.gov/Archives/edgar/data/320193/000119312514383437/aapl-20140927.xml")
+
+
+print(xbrl_data)
+
+
+unique(top100$cik)
 
 
 
+tenK <- top100 %>% 
+  filter(form == "10-K") %>% 
+  filter(desc == "AssetsCurrent",
+         )
 
+unique(tenK$desc)
 
+unique(tenK$cik)
+# key ratios
+# current assets/current liablties
+```
 

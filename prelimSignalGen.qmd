@@ -1,0 +1,285 @@
+---
+title: "EconPrelim"
+format: html
+editor: visual
+---
+
+## Libraries, Usernames, and Passwords  
+
+```{r}
+library(tidyquant)
+library(tidyr)
+library(fredr)
+library(purrr)
+library(ggplot2)
+library(rvest)
+library(readxl)
+options(scipen=999)
+library(jsonlite)
+library(tidyverse)
+library(lubridate)
+```
+
+
+```{r}
+
+# NASDAQ 
+
+NASDAQ <- read_excel("C:\\Users\\Aditya Sharma\\OneDrive\\Desktop\\FaT 488 Project 2\\nasdaq_screener.xlsx") %>% 
+  dplyr::select(Symbol)
+
+vector_from_df <- NASDAQ$Symbol
+
+NASDAQ_pull <- tidyquant::tq_get(vector_from_df,
+                            get = "stock.prices", 
+                            from = "2023-01-01", 
+                            to = Sys.Date())
+
+```
+
+```{r}
+
+# UMCSENT - University of Michigan: Consumer Sentiment (Monthly)
+# DGORDER - Manufacturers' New Orders: Durable Goods (Monthly)
+# ICSA - Initial Claims (Weekly)
+# PERMIT - New Privately-Owned Housing Units Authorized in Permit-Issuing Places: Total Units (Monthly)
+# T10Y2Y - 10-Year Treasury Constant Maturity Minus 2-Year Treasury Constant Maturity (Daily)
+
+fredr_set_key('d1ddfc3727527d3ca0b0ddebd7e9dade')
+
+leading_indicators <- c("UMCSENT", "DGORDER", "ICSA", "PERMIT", "T10Y2Y", "GDP")
+data_list = c()
+
+for (series_id in leading_indicators) {
+  series_data <- fredr_series_observations(series_id = series_id, 
+                                           frequency = "q", 
+                                           aggregation_method = "avg", 
+                                           observation_start = as.Date("2000-01-01"), 
+                                           observation_end = as.Date(Sys.Date()))
+  data_list[[series_id]] <- series_data
+}
+
+
+combined_data <- do.call(rbind, data_list) %>% 
+  dplyr::select(date, series_id, value) %>% 
+  na.omit()
+
+combined_data <- combined_data %>% 
+  dplyr::group_by(series_id) %>% 
+  dplyr::mutate(delta = (value / dplyr::lag(value)) - 1) 
+
+
+fredr_endpoints
+
+``` 
+
+```{r}
+
+# Energy 
+
+energy_series = c("IYE", "CL=F", "NG=F")
+
+energy <- tidyquant::tq_get(energy_series,
+                            get = "stock.prices", 
+                            from = "2015-01-01", 
+                            to = Sys.Date()) %>% 
+  dplyr::select(date, symbol, adjusted) %>% 
+  pivot_wider(names_from = symbol, values_from = adjusted) %>% 
+  dplyr::mutate(IYE_del = (IYE / dplyr::lag(IYE)) -1)
+
+names(energy)[3] = "crude"
+names(energy)[4] = "natgas"
+
+energy <- energy %>% 
+  dplyr::mutate(crude_del = (crude / dplyr::lag(crude)) - 1, 
+                natgas_del = (natgas / dplyr::lag(natgas)) -1) %>% 
+  na.omit()
+
+energy_model <- lm(IYE_del ~ crude_del + natgas_del, data = energy)
+
+summary(energy_model)
+```
+
+```{r}
+fredr_series(
+  series_id = "UNRATE",
+  realtime_start = as.Date("1950-01-01")
+)
+
+
+fredr_endpoints
+
+fredr_series_vintagedates(series_id = "DGORDER")
+# 
+# https://api.stlouisfed.org/fred/release/dates?release_id=82&api_key=abcdefghijklmnopqrstuvwxyz123456
+# 
+# # base sheet
+# 
+# https://api.stlouisfed.org/fred/releases?api_key=d1ddfc3727527d3ca0b0ddebd7e9dade
+# 
+# # "DGORDER"
+# https://api.stlouisfed.org/fred/release/dates?release_id=95&api_key=d1ddfc3727527d3ca0b0ddebd7e9dade&file_type=json
+# 
+# # "UMCSENT"
+# https://api.stlouisfed.org/fred/release/dates?release_id=91&api_key=d1ddfc3727527d3ca0b0ddebd7e9dade&file_type=json
+# 
+# # "PERMITS
+# https://api.stlouisfed.org/fred/release/dates?release_id=148&api_key=d1ddfc3727527d3ca0b0ddebd7e9dade&file_type=json
+# 
+# # GDP
+# https://api.stlouisfed.org/fred/release/dates?release_id=53&api_key=d1ddfc3727527d3ca0b0ddebd7e9dade&file_type=json
+
+
+FREDrelease <- function(seriesID, apiKey, seriesName){
+  fredUrl <- sprintf("https://api.stlouisfed.org/fred/release/dates?release_id=%s&api_key=%s&file_type=json",
+                 seriesID, apiKey)
+
+  Jdata <- fromJSON(fredUrl)
+
+  seriesDf <- as.data.frame(Jdata$release_dates)
+  
+  seriesDf <- seriesDf %>%
+    mutate(seriesName = seriesName)
+  
+  return(seriesDf)
+}
+
+
+gdpR <- FREDrelease(53, 'd1ddfc3727527d3ca0b0ddebd7e9dade', "GDP")
+
+permitR <- FREDrelease(148, 'd1ddfc3727527d3ca0b0ddebd7e9dade', "PERMIT")
+
+umcsentR <- FREDrelease(91, 'd1ddfc3727527d3ca0b0ddebd7e9dade', "UMCSENT")
+
+dgorderR <- FREDrelease(95, 'd1ddfc3727527d3ca0b0ddebd7e9dade', "DGORDER")
+
+rbind(gdpR, permitR, umcsentR, dgorderR) %>% 
+  filter(date >= "2000-01-01")
+
+
+
+leading_indicators <- c("UMCSENT", "DGORDER", "UNRATE", "PERMIT", "GDP")
+data_list = c()
+
+for (series_id in leading_indicators) {
+  series_data <- fredr_series_observations(series_id = series_id, 
+                                           observation_start = as.Date("2000-01-01"), 
+                                           observation_end = as.Date(Sys.Date()))
+  data_list[[series_id]] <- series_data
+}
+
+
+  
+combined_data <- do.call(rbind, data_list)
+
+test <- combined_data %>%
+  mutate(dateAdj = case_when(series_id == "UMCSENT" ~ date + months(1) - days(1),
+                             series_id == "DGORDER" ~ date + months(1) - days(1),
+                             series_id == "PERMIT" ~ date + months(1) - days(1),
+                             series_id == "GDP" ~ date + months(3) - days(1),
+                             series_id == "UNRATE" ~ date + months(1) - days(1))) %>% 
+  mutate(dateRel = case_when(series_id == "UMCSENT" ~ date + months(2) - days(1),
+                             series_id == "DGORDER" ~ date + months(3) - days(1),
+                             series_id == "PERMIT" ~ date + months(2) - days(1),
+                             series_id == "GDP" ~ date + months(5) - days(1),
+                             series_id == "UNRATE" ~ date + months(2) - days(1))) %>% 
+  group_by(series_id) %>% 
+  filter(date == max(date))
+
+
+
+
+```
+
+```{r}
+energy_series = c("CL=F", "NG=F")
+
+energy <- tidyquant::tq_get(energy_series,
+                            get = "stock.prices", 
+                            from = "2015-01-01", 
+                            to = Sys.Date()) %>% 
+  dplyr::select(date, symbol, adjusted) 
+
+
+yield <- tidyquant::tq_get("T10Y2Y",
+                            get = "economic.data", 
+                            from = "2001-01-01", 
+                            to = Sys.Date()) %>% 
+  dplyr::select(date, symbol, price) 
+
+
+energy_series = c("CL=F", "NG=F")
+
+energy <- tidyquant::tq_get(energy_series,
+                            get = "stock.prices", 
+                            from = "2015-01-01", 
+                            to = Sys.Date()) %>% 
+  dplyr::select(date, symbol, adjusted) 
+
+
+
+materials = c("HG=F", "GC=F", "PA=F", "SI=F")
+
+
+enegrgy
+#O&G
+
+materials  
+#c("HG=F", "GC=F", "PA=F", "SI=F")
+
+industrial 
+# PERMIT
+# DGORDER
+# global geo vol index
+# transport/planes/etc.
+
+Consumer Discretinary
+# Consumer spending stregth
+# Durable index
+# Consumer sentiment
+# UNRATE
+
+Consumer Staples
+# Generally flat
+# UNRATE (relative to discretionatry)
+# overall econ doing bad; limit losses
+
+Healthcare
+# overall econ doing bad; limit losses
+
+Finacial
+# Housing starts
+# Consumer  credit utilization
+# Interest rates
+
+Information technolgy
+# Business spending
+
+
+Commonication services
+# Ad spend
+# Interest rates (high leverage)
+
+Utilities
+# Interest rates (high leverage)
+
+REITS
+
+# Interest rates (high leverage)
+# REIT index
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+
