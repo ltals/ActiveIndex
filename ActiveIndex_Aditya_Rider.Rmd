@@ -229,7 +229,6 @@ Utilties_change <- ggplotly(Utilities_change)
 ```
 
 
-
 ```{r, echo=FALSE}
 
 Tech_change 
@@ -255,6 +254,9 @@ Materials_change
 Utilities_change 
 
 ```
+
+
+
 
 
 
