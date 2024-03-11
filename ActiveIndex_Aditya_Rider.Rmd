@@ -5,3 +5,17 @@ date: "2024-03-11"
 output: html_document
 ---
 
+# Usernames, Passwords, and Libraries 
+
+```{r}
+library(readxl)
+```
+
+# S&P 500 Historical Weights 
+
+```{r}
+SP500_Hist_Weights <- read_excel("C:\\Users\\Aditya Sharma\\OneDrive\\Desktop\\FaT 488 Project 2\\ActiveIndex\\S&P_Hist_Weight.xlsx") %>% 
+  
+  
+```
+
