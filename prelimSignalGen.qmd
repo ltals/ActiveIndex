@@ -26,6 +26,26 @@ plotFun <- function(longdf){
   
   return(plot)
 }
+
+
+
+signalBasic <- function(longdf){
+  longdf <- longdf %>%
+  mutate(monthRel = format(dateRel, "%m-%Y")) %>%
+  mutate(quarterRel = paste0(year(dateRel), "-", quarter(dateRel))) %>% 
+  group_by(series_id) %>% 
+  mutate(logDelta = log(value/lag(value)),
+         threeMA = rollapply(value, 3, mean, fill = NA, align = "right")) %>%
+  group_by(quarterRel, series_id) %>% 
+  summarise(logSum = sum(logDelta),
+            value = last(value),
+            threeMA = last(threeMA)) %>% 
+  mutate(xOver = case_when(value >= threeMA ~ 1,
+                           value < threeMA ~ -1))
+  
+  return(longdf)
+}
+
 ```
 
 
@@ -145,56 +165,6 @@ combined_data <- do.call(rbind, data_list)
 
 # Energy
 # nat gas & crude
-energy_series = c("CL=F", "NG=F")
-
-energy <- tidyquant::tq_get(energy_series,
-                            get = "stock.prices", 
-                            from = "2000-01-01", 
-                            to = Sys.Date()) %>% 
-  dplyr::select(date, symbol, adjusted) %>% 
-  mutate(datRel = date + days(1)) %>% 
-  mutate(value = adjusted,
-         series_id = symbol)
-
-plotFun(energy)
-
-# Materials  
-matSeries = c("HG=F", "GC=F", "PA=F", "SI=F")
-
-materials <- tidyquant::tq_get(matSeries,
-                            get = "stock.prices", 
-                            from = "2000-01-01", 
-                            to = Sys.Date()) %>% 
-  dplyr::select(date, symbol, adjusted) %>% 
-  mutate(dateRel = date + days(1)) %>% 
-  mutate(value = adjusted) %>% 
-  mutate(value = adjusted,
-         series_id = symbol)
-
-plotFun(materials)
-
-```
-
-```{r}
-
-# Industrial
-
-indSeries <- c("HOUST", "DGORDER")
-
-"T10Y2Y"
-
-industrials <- tidyquant::tq_get(indSeries,
-                            get = "economic.data", 
-                            from = "2000-01-01", 
-                            to = Sys.Date()) %>%
-  rename(series_id = symbol, value = price) %>% 
-  mutate(dateAdj = case_when(series_id == "DGORDER" ~ date + months(1) - days(1),
-                             series_id == "HOUST" ~ date + months(1) - days(1))) %>% 
-  mutate(dateRel = case_when(series_id == "DGORDER" ~ date + months(3) - days(1),
-                             series_id == "HOUST" ~ date + months(2) - days(1)))
-
-plotFun(industrials)
-
 gpr <- haven::read_dta('https://www.matteoiacoviello.com/gpr_files/data_gpr_export.dta')
 
 refDate <- as.Date("1985-01-01")
@@ -206,10 +176,81 @@ gpr <- gpr %>%
   select(date, value = GPR) %>% 
   mutate(series_id = "GPR") %>% 
   mutate(dateAdj = date + months(1) - days(1)) %>% 
-  mutate(dateRel = date + months(1) + days(1))
+  mutate(dateRel = date + months(1) + days(1)) %>% 
+  filter(date >= '2000-01-01')
 
 
-industrials <- rbind(industrials, gpr)
+energy_series = c("CL=F", "NG=F")
+
+energy <- tidyquant::tq_get(energy_series,
+                            get = "stock.prices", 
+                            from = "2000-01-01", 
+                            to = Sys.Date()) %>% 
+  dplyr::select(date, series_id = symbol, value = adjusted) %>% 
+  mutate(dateRel = date + days(1),
+         dateAdj = date) %>% 
+  drop_na()
+
+
+
+energy <- rbind(energy, gpr) %>%
+  mutate(monthRel = format(date, "%m-%Y")) %>% 
+  group_by(series_id) %>% 
+  mutate(logDelta = log(value/lag(value)))
+
+plotFun(energy)
+
+# Materials  
+matSeries = c("HG=F", "GC=F", "PA=F", "SI=F")
+
+materials <- tidyquant::tq_get(matSeries,
+                            get = "stock.prices", 
+                            from = "2000-01-01", 
+                            to = Sys.Date()) %>% 
+  dplyr::select(date, series_id = symbol, value = adjusted) %>% 
+  mutate(dateRel = date + days(1),
+         dateAdj = date) %>% 
+  drop_na()
+
+
+materials <- rbind(materials, gpr) %>%
+  mutate(monthRel = format(date, "%m-%Y")) %>% 
+  group_by(series_id) %>% 
+  mutate(logDelta = log(value/lag(value)))
+
+plotFun(materials)
+
+```
+
+```{r}
+
+# Industrial
+
+
+
+indSeries <- c("HOUST") #, "DGORDER")
+
+
+
+industrials <- tidyquant::tq_get(indSeries,
+                            get = "economic.data", 
+                            from = "2000-01-01", 
+                            to = Sys.Date()) %>%
+  rename(series_id = symbol, value = price) %>% 
+  mutate(dateAdj = case_when(series_id == "DGORDER" ~ date + months(1) - days(1),
+                             series_id == "HOUST" ~ date + months(1) - days(1))) %>% 
+  mutate(dateRel = case_when(series_id == "DGORDER" ~ date + months(3) - days(1),
+                             series_id == "HOUST" ~ date + months(2) - days(1)))
+
+
+industrials <- rbind(industrials, gpr) %>% 
+  signalBasic()
+
+
+plotFun(industrials)
+
+
+
 
 
 plotFun(industrials)
@@ -217,7 +258,7 @@ plotFun(industrials)
 # Consumer Discretinary
 
 
-conDiscSeries <- c("UMCSENT", "DGORDER", "UNRATE", "PCE")
+conDiscSeries <- c("UMCSENT", "UNRATE", "PCE")#, "DGORDER")
 
 conDisc <- tidyquant::tq_get(conDiscSeries,
                             get = "economic.data", 
@@ -231,7 +272,8 @@ conDisc <- tidyquant::tq_get(conDiscSeries,
   mutate(dateRel = case_when(series_id == "UMCSENT" ~ date + months(2) - days(1),
                              series_id == "DGORDER" ~ date + months(3) - days(1),
                              series_id == "UNRATE" ~ date + months(2) - days(1),
-                             series_id == "PCE" ~ date + months(2) - days(1)))
+                             series_id == "PCE" ~ date + months(2) - days(1))) %>% 
+  signalBasic()
 
 plotFun(conDisc)
 
@@ -252,7 +294,8 @@ conStap <- tidyquant::tq_get(conStapSeries,
   mutate(dateAdj = case_when(series_id == "CPIAUCSL" ~ date + months(1) - days(1),
                              series_id == "UNRATE" ~ date + months(1) - days(1))) %>% 
   mutate(dateRel = case_when(series_id == "CPIAUCSL" ~ date + months(2) - days(1),
-                             series_id == "UNRATE" ~ date + months(2) - days(1)))
+                             series_id == "UNRATE" ~ date + months(2) - days(1))) %>% 
+  signalBasic()
 
 plotFun(conStap)
 # Healthcare
@@ -268,7 +311,9 @@ health <- tidyquant::tq_get(conStapSeries,
   mutate(dateAdj = case_when(series_id == "CPIAUCSL" ~ date + months(1) - days(1),
                              series_id == "UNRATE" ~ date + months(1) - days(1))) %>% 
   mutate(dateRel = case_when(series_id == "CPIAUCSL" ~ date + months(2) - days(1),
-                             series_id == "UNRATE" ~ date + months(2) - days(1)))
+                             series_id == "UNRATE" ~ date + months(2) - days(1))) %>% 
+  signalBasic()
+
 plotFun(health)
 ```
 
@@ -276,7 +321,7 @@ plotFun(health)
 
 # Financials
 
-finSeries <- c("HOUST", "TOTALSL", "DGS3MO")
+finSeries <- c("HOUST", "DGS3MO") #TOTALSL
 
 financials <- tidyquant::tq_get(finSeries,
                             get = "economic.data", 
@@ -288,7 +333,8 @@ financials <- tidyquant::tq_get(finSeries,
                              series_id == "DGS3MO" ~ date)) %>% 
   mutate(dateRel = case_when(series_id == "TOTALSL" ~ date + months(3) - days(1),
                              series_id == "HOUST" ~ date + months(2) - days(1),
-                             series_id == "DGS3MO" ~ date + days(1)))
+                             series_id == "DGS3MO" ~ date + days(1))) %>% 
+  signalBasic()
 
 plotFun(financials)
 
@@ -301,7 +347,8 @@ it <- tidyquant::tq_get(itSeries,
                             to = Sys.Date()) %>%
   rename(series_id = symbol, value = price) %>% 
   mutate(dateAdj = date) %>% 
-  mutate(dateRel = date + days(1))
+  mutate(dateRel = date + days(1)) %>% 
+  signalBasic()
 
 plotFun(it)
 
@@ -318,7 +365,8 @@ com <- tidyquant::tq_get(itSeries,
                             to = Sys.Date()) %>%
   rename(series_id = symbol, value = price) %>% 
   mutate(dateAdj = date) %>% 
-  mutate(dateRel = date + days(1))
+  mutate(dateRel = date + days(1)) %>% 
+  mutate(logDelta = log(value/lag(value)))
 
 plotFun(com)
 
@@ -333,7 +381,8 @@ util <- tidyquant::tq_get(utilSeries,
                             to = Sys.Date()) %>%
   rename(series_id = symbol, value = price) %>% 
   mutate(dateAdj = date) %>% 
-  mutate(dateRel = date + days(1))
+  mutate(dateRel = date + days(1)) %>% 
+  mutate(logDelta = log(value/lag(value)))
 
 ```
 
@@ -351,8 +400,8 @@ realestate <- tidyquant::tq_get(realestSeries,
   mutate(dateAdj = case_when(series_id == "USAUCSFRCONDOSMSAMID" ~ date + months(1) - days(1),
                              series_id == "DGS3MO" ~ date)) %>% 
   mutate(dateRel = case_when(series_id == 'USAUCSFRCONDOSMSAMID' ~ date + months(2) - days(1),
-                             series_id == "DGS3MO" ~ date + days(1)))
-
+                             series_id == "DGS3MO" ~ date + days(1))) %>% 
+  signalBasic()
 
 
 plotFun(realestate)
