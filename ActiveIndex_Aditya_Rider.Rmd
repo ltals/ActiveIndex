@@ -330,9 +330,25 @@ COMPUSTAT_Updated <- COMPUSTAT_Updated %>%
   mutate(cshoc = ifelse(is.na(cshoc), lag(cshoc), cshoc))
 
 
-# Pulling finanacial metrics for these companies 
+# Pulling financial metrics for these companies 
 
-  
+Financials <- read_csv("Financials/Financials.csv")
+
+Financials <- Financials %>% 
+  dplyr::rename(Shillers_PE = CAPEI, 
+                PE = pe_exi, 
+                Div_Pay_Ratio = dpr, 
+                Gross_Profit_Margin = gpm, 
+                Return_Equity = roe, 
+                Cash_Flow_to_Debt = cash_debt, 
+                Total_Debt_Equity = de_ratio, 
+                Interest_Coverage_Ratio = intcov_ratio, 
+                Current_Ratio = curr_ratio, 
+                PEG = PEG_trailing, 
+                symbol = TICKER) %>% 
+  dplyr::select(-permno, -adate)
+
+COMPUSTAT_Updated <- full_join(COMPUSTAT_Updated, Financials, by = "symbol")
 ```
 
 
