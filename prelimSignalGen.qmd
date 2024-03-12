@@ -4,7 +4,7 @@ format: html
 editor: visual
 ---
 
-## Libraries, Usernames, and Passwords
+
 
 ```{r}
 library(tidyquant)
@@ -18,63 +18,18 @@ options(scipen=999)
 library(jsonlite)
 library(tidyverse)
 library(lubridate)
-```
+library(plotly)
 
-```{r}
-
-# NASDAQ 
-
-NASDAQ <- read_excel("C:\\Users\\Aditya Sharma\\OneDrive\\Desktop\\FaT 488 Project 2\\nasdaq_screener.xlsx") %>% 
-  dplyr::select(Symbol)
-
-vector_from_df <- NASDAQ$Symbol
-
-NASDAQ_pull <- tidyquant::tq_get(vector_from_df,
-                            get = "stock.prices", 
-                            from = "2023-01-01", 
-                            to = Sys.Date())
-
-```
-
-```{r}
-
-# UMCSENT - University of Michigan: Consumer Sentiment (Monthly)
-# DGORDER - Manufacturers' New Orders: Durable Goods (Monthly)
-# ICSA - Initial Claims (Weekly)
-# PERMIT - New Privately-Owned Housing Units Authorized in Permit-Issuing Places: Total Units (Monthly)
-# T10Y2Y - 10-Year Treasury Constant Maturity Minus 2-Year Treasury Constant Maturity (Daily)
-
-fredr_set_key('d1ddfc3727527d3ca0b0ddebd7e9dade')
-
-leading_indicators <- c("UMCSENT", "DGORDER", "ICSA", "PERMIT", "T10Y2Y", "GDP")
-data_list = c()
-
-for (series_id in leading_indicators) {
-  series_data <- fredr_series_observations(series_id = series_id, 
-                                           frequency = "q", 
-                                           aggregation_method = "avg", 
-                                           observation_start = as.Date("2000-01-01"), 
-                                           observation_end = as.Date(Sys.Date()))
-  data_list[[series_id]] <- series_data
+plotFun <- function(longdf){
+  plot <- plotly::ggplotly(longdf %>% 
+  ggplot(aes(x = date, y = value, col = series_id)) + geom_line())
+  
+  return(plot)
 }
-
-
-combined_data <- do.call(rbind, data_list) %>% 
-  dplyr::select(date, series_id, value) %>% 
-  na.omit()
-
-combined_data <- combined_data %>% 
-  dplyr::group_by(series_id) %>% 
-  dplyr::mutate(delta = (value / dplyr::lag(value)) - 1) 
-
-
-fredr_endpoints
-
 ```
 
-```{r}
 
-# Energy 
+```{r}
 
 energy_series = c("IYE", "CL=F", "NG=F")
 
@@ -177,154 +132,17 @@ for (series_id in leading_indicators) {
   
 combined_data <- do.call(rbind, data_list)
 
-test <- combined_data %>%
-  mutate(dateAdj = case_when(series_id == "UMCSENT" ~ date + months(1) - days(1),
-                             series_id == "DGORDER" ~ date + months(1) - days(1),
-                             series_id == "PERMIT" ~ date + months(1) - days(1),
-                             series_id == "GDP" ~ date + months(3) - days(1),
-                             series_id == "UNRATE" ~ date + months(1) - days(1))) %>% 
-  mutate(dateRel = case_when(series_id == "UMCSENT" ~ date + months(2) - days(1),
-                             series_id == "DGORDER" ~ date + months(3) - days(1),
-                             series_id == "PERMIT" ~ date + months(2) - days(1),
-                             series_id == "GDP" ~ date + months(5) - days(1),
-                             series_id == "UNRATE" ~ date + months(2) - days(1))) %>% 
-  group_by(series_id) %>% 
-  filter(date == max(date))
-
 
 
 
 ```
 
-```{r}
-energy_series = c("CL=F", "NG=F")
 
-energy <- tidyquant::tq_get(energy_series,
-                            get = "stock.prices", 
-                            from = "2015-01-01", 
-                            to = Sys.Date()) %>% 
-  dplyr::select(date, symbol, adjusted) 
-
-
-yield <- tidyquant::tq_get("T10Y2Y",
-                            get = "economic.data", 
-                            from = "2001-01-01", 
-                            to = Sys.Date()) %>% 
-  dplyr::select(date, symbol, price) 
-
-
-energy_series = c("CL=F", "NG=F")
-
-energy <- tidyquant::tq_get(energy_series,
-                            get = "stock.prices", 
-                            from = "2015-01-01", 
-                            to = Sys.Date()) %>% 
-  dplyr::select(date, symbol, adjusted) 
-
-
-
-materials = c("HG=F", "GC=F", "PA=F", "SI=F")
-
-
-enegrgy
-#O&G
-
-materials  
-#c("HG=F", "GC=F", "PA=F", "SI=F")
-
-industrial 
-# PERMIT
-# DGORDER
-# global geo vol index
-## legit source, academic from the us fed. cool stuff.
-
-gpr <- haven::read_dta('https://www.matteoiacoviello.com/gpr_files/data_gpr_export.dta')
-
-refDate <- as.Date("1985-01-01")
-
-gpr <- gpr %>% 
-  select(month, GPR) %>% 
-  drop_na() %>% 
-  mutate(date = refDate %m+% months(month - 300)) %>% 
-  select(date, gpr = GPR)
-
-# transport/planes/etc.
-## Miles driven https://fred.stlouisfed.org/series/TRFVOLUSM227SFWA
-
-milesDriven <- tidyquant::tq_get("TRFVOLUSM227SFWA",
-                            get = "economic.data", 
-                            from = "2001-01-01", 
-                            to = Sys.Date()) %>% 
-  dplyr::select(date, symbol, price) 
-
-
-airRevMiles <- tidyquant::tq_get("AIRRPMTSID11",
-                            get = "economic.data", 
-                            from = "2001-01-01", 
-                            to = Sys.Date()) %>% 
-  dplyr::select(date, symbol, price) 
-
-Consumer Discretinary
-# Consumer spending strength
-
-airRevMiles <- tidyquant::tq_get("PCE",
-                            get = "economic.data", 
-                            from = "2001-01-01", 
-                            to = Sys.Date()) %>% 
-  dplyr::select(date, symbol, price) 
-
-# Durable index
-# Consumer sentiment
-# UNRATE
-
-Consumer Staples
-# Generally flat
-# UNRATE (relative to discretionatry)
-# overall econ doing bad; limit losses
-
-Healthcare
-# overall econ doing bad; limit losses
-
-Finacial
-# Housing starts
-housingSt <- tidyquant::tq_get("HOUST",
-                            get = "economic.data", 
-                            from = "2001-01-01", 
-                            to = Sys.Date()) %>% 
-  dplyr::select(date, symbol, price) 
-# Consumer  credit utilization
-
-totalConsumCred <- tidyquant::tq_get("TOTALSL",
-                            get = "economic.data", 
-                            from = "2001-01-01", 
-                            to = Sys.Date()) %>% 
-  dplyr::select(date, symbol, price) 
-
-# Interest rates
-
-Information technolgy
-# Business spending
-
-
-Commonication services
-# Ad spend
-# Interest rates (high leverage)
-# low interest ROC
-
-Utilities
-# Interest rates
-
-REITS
-
-# Interest rates 
-# zillow index
-
-
-```
 
 # Sector Dataframes
 
 ```{r}
+
 # Energy
 # nat gas & crude
 energy_series = c("CL=F", "NG=F")
@@ -334,7 +152,11 @@ energy <- tidyquant::tq_get(energy_series,
                             from = "2000-01-01", 
                             to = Sys.Date()) %>% 
   dplyr::select(date, symbol, adjusted) %>% 
-  mutate(datRel = date + days(1))
+  mutate(datRel = date + days(1)) %>% 
+  mutate(value = adjusted,
+         series_id = symbol)
+
+plotFun(energy)
 
 # Materials  
 matSeries = c("HG=F", "GC=F", "PA=F", "SI=F")
@@ -344,13 +166,22 @@ materials <- tidyquant::tq_get(matSeries,
                             from = "2000-01-01", 
                             to = Sys.Date()) %>% 
   dplyr::select(date, symbol, adjusted) %>% 
-  mutate(dateRel = date + days(1))
+  mutate(dateRel = date + days(1)) %>% 
+  mutate(value = adjusted) %>% 
+  mutate(value = adjusted,
+         series_id = symbol)
+
+plotFun(materials)
+
+```
+
+```{r}
 
 # Industrial
 
 indSeries <- c("HOUST", "DGORDER")
 
-
+"T10Y2Y"
 
 industrials <- tidyquant::tq_get(indSeries,
                             get = "economic.data", 
@@ -361,6 +192,8 @@ industrials <- tidyquant::tq_get(indSeries,
                              series_id == "HOUST" ~ date + months(1) - days(1))) %>% 
   mutate(dateRel = case_when(series_id == "DGORDER" ~ date + months(3) - days(1),
                              series_id == "HOUST" ~ date + months(2) - days(1)))
+
+plotFun(industrials)
 
 gpr <- haven::read_dta('https://www.matteoiacoviello.com/gpr_files/data_gpr_export.dta')
 
@@ -376,12 +209,17 @@ gpr <- gpr %>%
   mutate(dateRel = date + months(1) + days(1))
 
 
+industrials <- rbind(industrials, gpr)
+
+
+plotFun(industrials)
+
 # Consumer Discretinary
 
 
 conDiscSeries <- c("UMCSENT", "DGORDER", "UNRATE", "PCE")
 
-industrials <- tidyquant::tq_get(conDiscSeries,
+conDisc <- tidyquant::tq_get(conDiscSeries,
                             get = "economic.data", 
                             from = "2000-01-01", 
                             to = Sys.Date()) %>%
@@ -395,7 +233,46 @@ industrials <- tidyquant::tq_get(conDiscSeries,
                              series_id == "UNRATE" ~ date + months(2) - days(1),
                              series_id == "PCE" ~ date + months(2) - days(1)))
 
-# Consumer
+plotFun(conDisc)
+
+```
+
+
+```{r}
+
+# Consumer Staples
+
+conStapSeries <- c("CPIAUCSL", "UNRATE")
+
+conStap <- tidyquant::tq_get(conStapSeries,
+                            get = "economic.data", 
+                            from = "2000-01-01", 
+                            to = Sys.Date()) %>%
+  rename(series_id = symbol, value = price) %>%
+  mutate(dateAdj = case_when(series_id == "CPIAUCSL" ~ date + months(1) - days(1),
+                             series_id == "UNRATE" ~ date + months(1) - days(1))) %>% 
+  mutate(dateRel = case_when(series_id == "CPIAUCSL" ~ date + months(2) - days(1),
+                             series_id == "UNRATE" ~ date + months(2) - days(1)))
+
+plotFun(conStap)
+# Healthcare
+# overall econ doing bad; limit losses
+
+healthSeries <- c("CPIAUCSL", "UNRATE")
+
+health <- tidyquant::tq_get(conStapSeries,
+                            get = "economic.data", 
+                            from = "2000-01-01", 
+                            to = Sys.Date()) %>%
+  rename(series_id = symbol, value = price) %>%
+  mutate(dateAdj = case_when(series_id == "CPIAUCSL" ~ date + months(1) - days(1),
+                             series_id == "UNRATE" ~ date + months(1) - days(1))) %>% 
+  mutate(dateRel = case_when(series_id == "CPIAUCSL" ~ date + months(2) - days(1),
+                             series_id == "UNRATE" ~ date + months(2) - days(1)))
+plotFun(health)
+```
+
+```{r}
 
 # Financials
 
@@ -413,9 +290,7 @@ financials <- tidyquant::tq_get(finSeries,
                              series_id == "HOUST" ~ date + months(2) - days(1),
                              series_id == "DGS3MO" ~ date + days(1)))
 
-read_rta('data/name.rta')
-
-# Interest rates
+plotFun(financials)
 
 # Information tech
 itSeries <- c("DGS3MO")
@@ -428,10 +303,16 @@ it <- tidyquant::tq_get(itSeries,
   mutate(dateAdj = date) %>% 
   mutate(dateRel = date + days(1))
 
-# Communications
-itSeries <- c("DGS3MO")
+plotFun(it)
 
-it <- tidyquant::tq_get(itSeries,
+```
+
+```{r}
+
+# Communications
+comSeries <- c("DGS3MO")
+
+com <- tidyquant::tq_get(itSeries,
                             get = "economic.data", 
                             from = "2000-01-01", 
                             to = Sys.Date()) %>%
@@ -439,20 +320,10 @@ it <- tidyquant::tq_get(itSeries,
   mutate(dateAdj = date) %>% 
   mutate(dateRel = date + days(1))
 
-
-# Communications
-itSeries <- c("DGS3MO")
-
-it <- tidyquant::tq_get(itSeries,
-                            get = "economic.data", 
-                            from = "2000-01-01", 
-                            to = Sys.Date()) %>%
-  rename(series_id = symbol, value = price) %>% 
-  mutate(dateAdj = date) %>% 
-  mutate(dateRel = date + days(1))
-
+plotFun(com)
 
 # Utilities
+
 
 utilSeries <- c("DGS3MO")
 
@@ -463,6 +334,10 @@ util <- tidyquant::tq_get(utilSeries,
   rename(series_id = symbol, value = price) %>% 
   mutate(dateAdj = date) %>% 
   mutate(dateRel = date + days(1))
+
+```
+
+```{r}
 
 # Real estate
 
@@ -479,6 +354,8 @@ realestate <- tidyquant::tq_get(realestSeries,
                              series_id == "DGS3MO" ~ date + days(1)))
 
 
+
+plotFun(realestate)
 
 
 ```
