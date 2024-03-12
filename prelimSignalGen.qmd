@@ -395,6 +395,8 @@ industrials <- tidyquant::tq_get(conDiscSeries,
                              series_id == "UNRATE" ~ date + months(2) - days(1),
                              series_id == "PCE" ~ date + months(2) - days(1)))
 
+# Consumer
+
 # Financials
 
 finSeries <- c("HOUST", "TOTALSL", "DGS3MO")
@@ -411,6 +413,7 @@ financials <- tidyquant::tq_get(finSeries,
                              series_id == "HOUST" ~ date + months(2) - days(1),
                              series_id == "DGS3MO" ~ date + days(1)))
 
+read_rta('data/name.rta')
 
 # Interest rates
 
@@ -461,7 +464,7 @@ util <- tidyquant::tq_get(utilSeries,
   mutate(dateAdj = date) %>% 
   mutate(dateRel = date + days(1))
 
-# REITS
+# Real estate
 
 realestSeries <- c("USAUCSFRCONDOSMSAMID", "DGS3MO")
 
@@ -474,10 +477,6 @@ realestate <- tidyquant::tq_get(realestSeries,
                              series_id == "DGS3MO" ~ date)) %>% 
   mutate(dateRel = case_when(series_id == 'USAUCSFRCONDOSMSAMID' ~ date + months(2) - days(1),
                              series_id == "DGS3MO" ~ date + days(1)))
-
-# Interest rates 
-# zillow index
-
 
 
 
