@@ -1,0 +1,38 @@
+---
+title: "Broad Market Index - Algorthmically Optimized"
+format: html
+editor: visual
+---
+
+## Appeal of the Large Cap Index
+
+Personal finance experts typically direct perspective investors to hold significant proportions of large cap market indices like the S&P500 in their investment portfolio's. This advice is made for a varous reasons, icluding: - Diversification Benefits - Effectively elimating firm-specific portfolio risk - Theorectically given the efficient market hypothesis, firm-specific risk is not compensated for
+
+-   Low Management Fees *show effect of 2% management fee vs .5% mngmnt fee over 20 years*
+    -   Using market-capitilizations, are able to — without time intensive research — rebalance a portfolio on some pre-specified time interval to represent how much of an exchange or sector is represented by specific equities
+-   Facilitates a "hands-off" Investment Approach
+    -   Following equity-specifc news and research surrounding specific companies is not required to be a prudent investor
+    -   Large cap stocks generally have proven competitive advantages and cash flows, reducing risk and uncertainty surrounding investment
+
+## Our Thought
+
+Would an algorthmically-managed low-cost broad market index that in additon to market cap, considers firm-specific ratios and economic factors, outperform a benchmark index?
+
+### Portofolio/Strategy:
+
+-   U.S. Equities with a market cap greater than 200 Million Considers
+    -   Large cap companies
+-   Market-cap weighted index
+    -   Rebalanced quarterly with quarterly S&P500 sector weights as a benchmark
+
+    -   Macroeconomic signals will over/underweight specific sectors by +/- 10% relative to the S&P500 benchmark
+-   Firm-specific factors
+    -   Each sector will be comprised of equities that have superior financial metrics relative to their peers
+        - Allocation between selected firms will be market-cap weighted
+        
+### Rationale
+- Sectors over/underweighted, given macroeconomic factors
+ - S
+
+
+#### Rational :
