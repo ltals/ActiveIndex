@@ -20,6 +20,9 @@ library(viridis)
 library(dplyr)
 library(lubridate)
 library(patchwork)
+library(tidyverse)
+library(tidyquant)
+library(purrr)
 ```
 
 ## S&P 500 Historical Weights (Animate this if time) - Stacked and Area Charts 
@@ -259,7 +262,77 @@ Utilities_change
 
 ```{r}
 
+# COMPUSTAT_Pull <- haven::read_dta("data/t0kpnm2ibxmuhcwd.dta")
 
+# saveRDS(COMPUSTAT_Pull, file = "COMPUSTAT_DATA.Rda") 
+
+COMPUSTAT_Pull <- readRDS(file = "COMPUSTAT_DATA.Rda")
+
+ticlist <- unique(COMPUSTAT_Pull$tic)
+
+COMPUSTAT_Updated <- tidyquant::tq_get(ticlist, from = "2000-01-01") #%>%
+  dplyr::rename_all(tools::toTitleCase) %>%
+  # Convert to xts to adjust Open-High-Low-Close Prices for splits and dividends
+  timetk::tk_xts(date_var = Date) %>%
+  quantmod::adjustOHLC(.,use.Adjusted = TRUE) %>%
+  timetk::tk_tbl(rename_index = "Date") %>%
+  dplyr::select(-Adjusted) %>%
+  dplyr::mutate(across(where(is.numeric), round, 2)) %>% 
+  dplyr::rename(date = Date)
+  
+# saveRDS(COMPUSTAT_Updated, file = "COMPUSTAT_UPDATED.Rda") 
+
+COMPUSTAT_Updated <- readRDS(file = "COMPUSTAT_UPDATED.Rda") 
+
+# Taking the industry code out COMPUSTAT Pull and putting it in the COMPUSTAT_UPDATED file 
+
+industry <- COMPUSTAT_Pull %>% dplyr::select(tic, 
+                                 gind) %>% 
+  distinct() %>% 
+  dplyr::mutate(gind_updated = substr(gind, start = 1, stop = 2)) %>% 
+  dplyr::mutate(Industry = case_when(
+    gind_updated == 10 ~ "Energy", 
+    gind_updated == 15 ~ "Materials", 
+    gind_updated == 20 ~ "Industrials", 
+    gind_updated == 25 ~ "Discretionary", 
+    gind_updated == 30 ~ "Staples", 
+    gind_updated == 35 ~ "Healthcare", 
+    gind_updated == 40 ~ "Financials", 
+    gind_updated == 45 ~ "Infotech", 
+    gind_updated == 50 ~ "Communication", 
+    gind_updated == 55 ~ "Utilities", 
+    gind_updated == 60 ~ "Realestate"))
+
+unique(industry$gind_updated)
+
+# Adding industry to COMPUSTAT_UPDATED 
+
+COMPUSTAT_Updated
+
+industry <- industry %>% dplyr::rename(symbol = tic)
+
+COMPUSTAT_Updated <- full_join(COMPUSTAT_Updated, industry, by = "symbol") 
+
+COMPUSTAT_Updated <- COMPUSTAT_Updated %>% 
+  dplyr::filter(!is.na(Industry))
+
+# Adding Shares Outstanding from COMPUSTAT_PULL to COMPUSTATE_UPDATED 
+
+COMPUSTAT_Pull <- COMPUSTAT_Pull %>% dplyr::select(datadate, tic, cshoc) %>% 
+  dplyr::rename(date = datadate, 
+                symbol = tic)
+
+COMPUSTAT_Updated <- full_join(COMPUSTAT_Updated, COMPUSTAT_Pull, by = c("date" , "symbol"))
+
+COMPUSTAT_Updated <- COMPUSTAT_Updated %>% 
+  dplyr::filter(!is.na(open)) %>% 
+  dplyr::group_by(symbol) %>% 
+  mutate(cshoc = ifelse(is.na(cshoc), lag(cshoc), cshoc))
+
+
+# Pulling finanacial metrics for these companies 
+
+  
 ```
 
 
