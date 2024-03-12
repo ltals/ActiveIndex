@@ -158,6 +158,8 @@ rbind(gdpR, permitR, umcsentR, dgorderR) %>%
 
 
 
+
+
 leading_indicators <- c("UMCSENT", "DGORDER", "UNRATE", "PERMIT", "GDP")
 data_list = c()
 
@@ -231,10 +233,43 @@ industrial
 # PERMIT
 # DGORDER
 # global geo vol index
+## legit source, academic from the us fed. cool stuff.
+
+gpr <- haven::read_dta('https://www.matteoiacoviello.com/gpr_files/data_gpr_export.dta')
+
+refDate <- as.Date("1985-01-01")
+
+gpr <- gpr %>% 
+  select(month, GPR) %>% 
+  drop_na() %>% 
+  mutate(date = refDate %m+% months(month - 300)) %>% 
+  select(date, gpr = GPR)
+
 # transport/planes/etc.
+## Miles driven https://fred.stlouisfed.org/series/TRFVOLUSM227SFWA
+
+milesDriven <- tidyquant::tq_get("TRFVOLUSM227SFWA",
+                            get = "economic.data", 
+                            from = "2001-01-01", 
+                            to = Sys.Date()) %>% 
+  dplyr::select(date, symbol, price) 
+
+
+airRevMiles <- tidyquant::tq_get("AIRRPMTSID11",
+                            get = "economic.data", 
+                            from = "2001-01-01", 
+                            to = Sys.Date()) %>% 
+  dplyr::select(date, symbol, price) 
 
 Consumer Discretinary
-# Consumer spending stregth
+# Consumer spending strength
+
+airRevMiles <- tidyquant::tq_get("PCE",
+                            get = "economic.data", 
+                            from = "2001-01-01", 
+                            to = Sys.Date()) %>% 
+  dplyr::select(date, symbol, price) 
+
 # Durable index
 # Consumer sentiment
 # UNRATE
@@ -249,7 +284,19 @@ Healthcare
 
 Finacial
 # Housing starts
+housingSt <- tidyquant::tq_get("HOUST",
+                            get = "economic.data", 
+                            from = "2001-01-01", 
+                            to = Sys.Date()) %>% 
+  dplyr::select(date, symbol, price) 
 # Consumer  credit utilization
+
+totalConsumCred <- tidyquant::tq_get("TOTALSL",
+                            get = "economic.data", 
+                            from = "2001-01-01", 
+                            to = Sys.Date()) %>% 
+  dplyr::select(date, symbol, price) 
+
 # Interest rates
 
 Information technolgy
@@ -259,25 +306,15 @@ Information technolgy
 Commonication services
 # Ad spend
 # Interest rates (high leverage)
+# low interest ROC
 
 Utilities
-# Interest rates (high leverage)
+# Interest rates
 
 REITS
 
-# Interest rates (high leverage)
-# REIT index
-
-
-
-
-
-
-
-
-
-
-
+# Interest rates 
+# zillow index
 
 
 ```
