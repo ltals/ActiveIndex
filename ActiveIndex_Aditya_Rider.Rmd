@@ -31,7 +31,7 @@ library(purrr)
 
 # Data download and renaming sectors 
 
-SP500_Hist_Weights <- read_excel("C:\\Users\\Aditya Sharma\\OneDrive\\Desktop\\FaT 488 Project 2\\ActiveIndex\\S&P_Hist_Weight.xlsx") %>% 
+SP500_Hist_Weights <- read_excel("S&P_Hist_Weight.xlsx") %>% 
   dplyr::rename(Date = Date, 
                 Technology = "S&P 500 INFO TECH INDEX", 
                 Financials = "S&P 500 FINANCIALS INDEX", 
@@ -266,28 +266,41 @@ Utilities_change
 
 # saveRDS(COMPUSTAT_Pull, file = "COMPUSTAT_DATA.Rda") 
 
-COMPUSTAT_Pull <- readRDS(file = "COMPUSTAT_DATA.Rda")
+COMPUSTAT_Pull <- readRDS(file = "data/COMPUSTAT_DATA.Rda")
 
-ticlist <- unique(COMPUSTAT_Pull$tic)
+#ticlist <- unique(COMPUSTAT_Pull$tic)
 
-COMPUSTAT_Updated <- tidyquant::tq_get(ticlist, from = "2000-01-01") #%>%
-  dplyr::rename_all(tools::toTitleCase) %>%
-  # Convert to xts to adjust Open-High-Low-Close Prices for splits and dividends
-  timetk::tk_xts(date_var = Date) %>%
-  quantmod::adjustOHLC(.,use.Adjusted = TRUE) %>%
-  timetk::tk_tbl(rename_index = "Date") %>%
-  dplyr::select(-Adjusted) %>%
-  dplyr::mutate(across(where(is.numeric), round, 2)) %>% 
-  dplyr::rename(date = Date)
+
+# COMPUSTAT_Updated <- tidyquant::tq_get(ticlist, from = "2000-01-01") #%>%
+#   dplyr::rename_all(tools::toTitleCase) %>%
+#   # Convert to xts to adjust Open-High-Low-Close Prices for splits and dividends
+#   timetk::tk_xts(date_var = Date) %>%
+#   quantmod::adjustOHLC(.,use.Adjusted = TRUE) %>%
+#   timetk::tk_tbl(rename_index = "Date") %>%
+#   dplyr::select(-Adjusted) %>%
+#   dplyr::mutate(across(where(is.numeric), round, 2)) %>% 
+#   dplyr::rename(date = Date)
   
 # saveRDS(COMPUSTAT_Updated, file = "COMPUSTAT_UPDATED.Rda") 
 
-COMPUSTAT_Updated <- readRDS(file = "COMPUSTAT_UPDATED.Rda") 
+COMPUSTAT_Updated <- readRDS(file = "data/COMPUSTAT_UPDATED.Rda") 
+
+COMPUSTAT_Updatedadj <- COMPUSTAT_Updated  %>%
+   dplyr::rename_all(tools::toTitleCase) %>%
+  # Convert to xts to adjust Open-High-Low-Close Prices for splits and dividends
+   timetk::tk_xts(date_var = Date) %>%
+   quantmod::adjustOHLC(.,use.Adjusted = TRUE) %>%
+   timetk::tk_tbl(rename_index = "Date") %>%
+   dplyr::select(-Adjusted) %>%
+   dplyr::mutate(across(where(is.numeric), round, 2)) %>% 
+   dplyr::rename(date = Date)
+
+
 
 # Taking the industry code out COMPUSTAT Pull and putting it in the COMPUSTAT_UPDATED file 
 
-industry <- COMPUSTAT_Pull %>% dplyr::select(tic, 
-                                 gind) %>% 
+industry <- COMPUSTAT_Pull %>%
+  dplyr::select(tic, gind) %>% 
   distinct() %>% 
   dplyr::mutate(gind_updated = substr(gind, start = 1, stop = 2)) %>% 
   dplyr::mutate(Industry = case_when(
@@ -307,9 +320,8 @@ unique(industry$gind_updated)
 
 # Adding industry to COMPUSTAT_UPDATED 
 
-COMPUSTAT_Updated
-
-industry <- industry %>% dplyr::rename(symbol = tic)
+industry <- industry %>%
+  dplyr::rename(symbol = tic)
 
 COMPUSTAT_Updated <- full_join(COMPUSTAT_Updated, industry, by = "symbol") 
 
@@ -332,7 +344,7 @@ COMPUSTAT_Updated <- COMPUSTAT_Updated %>%
 
 # Pulling financial metrics for these companies 
 
-Financials <- read_csv("Financials/Financials.csv")
+Financials <- read_csv("data/Financials.csv")
 
 Financials <- Financials %>% 
   dplyr::rename(Shillers_PE = CAPEI, 
@@ -351,8 +363,7 @@ Financials <- Financials %>%
 COMPUSTAT_Updated <- full_join(COMPUSTAT_Updated, Financials, by = "symbol")
 ```
 
-
-
+### Summurise ratios by year
 
 
 

@@ -1,0 +1,490 @@
+---
+title: "ActiveIndex"
+author: "Aditya Sharma"
+date: "2024-03-11"
+output: html_document
+---
+
+```{r, include=FALSE}
+
+# Usernames, Passwords, and Libraries 
+
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(gganimate)
+library(hrbrthemes)
+library(viridis)
+library(dplyr)
+library(lubridate)
+library(patchwork)
+library(tidyverse)
+library(tidyquant)
+library(purrr)
+```
+
+## S&P 500 Historical Weights (Animate this if time) - Stacked and Area Charts 
+
+```{r, echo=FALSE, fig.width=10, fig.height=6}
+
+# Data download and renaming sectors 
+
+SP500_Hist_Weights <- read_excel("S&P_Hist_Weight.xlsx") %>% 
+  dplyr::rename(Date = Date, 
+                Technology = "S&P 500 INFO TECH INDEX", 
+                Financials = "S&P 500 FINANCIALS INDEX", 
+                Healthcare = "S&P 500 HEALTH CARE IDX", 
+                Discretionary = "S&P 500 CONS DISCRET IDX", 
+                Industrials = "S&P 500 INDUSTRIALS IDX", 
+                Communications = "S&P 500 COMM SVC", 
+                Staples = "S&P 500 CONS STAPLES IDX",
+                Energy = "S&P 500 ENERGY INDEX", 
+                RealEstate = "S&P 500 REAL ESTATE IDX", 
+                Materials = "S&P 500 MATERIALS INDEX", 
+                Utilities = "S&P 500 UTILITIES INDEX") 
+
+# Formatting the date column 
+
+SP500_Hist_Weights$Date <- as.Date(SP500_Hist_Weights$Date)
+  
+# Graphing historical S&P500 sector weights 
+
+SP500_Weights_Graphs <- SP500_Hist_Weights %>% 
+  tidyr::pivot_longer(-Date, names_to = "Sectors", values_to = "Weights") %>% 
+  na.omit() %>% 
+  ggplot2::ggplot(aes(x = Date, y = Weights, col = Sectors)) + 
+  geom_line() +
+  theme_minimal() + 
+  theme(axis.line = element_line(color = "black"), 
+        axis.ticks = element_line(color = "black"), 
+        legend.title = element_text(color = "black", size = 10, face = "bold"),
+        axis.title.x = element_text(color = "black", size = 10), 
+        axis.title.y = element_text(color = "black", size = 10)) + 
+  scale_color_discrete(name = "Sectors") + 
+  labs(x = "", y = "Sector Weights") 
+
+# Plotly Graph (Line Chart)
+
+SP500_Weights_Graphs <- ggplotly(SP500_Weights_Graphs)
+
+SP500_Weights_Graphs
+
+
+
+
+# Stacked area chart to show this a bit better 
+
+SP500_Weights_Graphs <- SP500_Hist_Weights %>% 
+  tidyr::pivot_longer(-Date, names_to = "Sectors", values_to = "Weights") %>% 
+  na.omit() %>% 
+  ggplot2::ggplot(aes(x = Date, y = Weights, fill = Sectors)) + 
+  geom_area() +  
+  theme_minimal() + 
+  theme(axis.line = element_line(color = "black"), 
+        axis.ticks = element_line(color = "black"), 
+        legend.title = element_text(color = "black", size = 10, face = "bold"),
+        axis.title.x = element_text(color = "black", size = 10), 
+        axis.title.y = element_text(color = "black", size = 10)) + 
+  scale_fill_discrete(name = "Sectors") + 
+  labs(x = "", y = "Sector Weights")
+
+# Convert ggplot to Plotly (Stacked Area Chart)
+
+SP500_Weights_Graphs <- ggplotly(SP500_Weights_Graphs)
+
+SP500_Weights_Graphs
+```
+
+## All sectors change in weights over time 
+
+```{r, include=FALSE}
+
+SP500_Weights_Graphs <- SP500_Hist_Weights %>% 
+  tidyr::pivot_longer(-Date, names_to = "Sectors", values_to = "Weights") %>% 
+  na.omit() %>% 
+  dplyr::group_by(Sectors) %>% 
+  dplyr::mutate(Change = Weights - lag(Weights)) %>% 
+  na.omit() %>% 
+  dplyr::mutate(Month = month(Date)) %>% 
+  dplyr::filter(Month == "12")
+
+Tech_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Technology") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Technology") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Tech_change <- ggplotly(Tech_change)
+
+Fin_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Financials") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Financials") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Fin_change <- ggplotly(Fin_change)
+
+Health_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Healthcare") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Health Care") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Health_change <- ggplotly(Health_change)
+
+Discretionary_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Discretionary") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Discretionary") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Discretionary_change <- ggplotly(Discretionary_change)
+
+Industrials_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Industrials") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Industrials") +
+  theme_minimal() + theme(legend.position = "none") 
+
+Industrials_change <- ggplotly(Industrials_change)
+
+Communications_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Communications") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Communications") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Communications_change <- ggplotly(Communications_change)
+
+Staples_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Staples") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Staples") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Energy_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Energy") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Energy") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Energy_change <- ggplotly(Energy_change)
+
+RealEstate_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "RealEstate") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("RealEstate") +
+  theme_minimal() + theme(legend.position = "none")  
+
+RealEstate_change <- ggplotly(RealEstate_change)
+
+Materials_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Materials") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Materials") +
+  theme_minimal() + theme(legend.position = "none")  
+
+Materials_change <- ggplotly(Materials_change)
+
+Utilities_change <- SP500_Weights_Graphs %>%
+  dplyr::filter(Sectors == "Utilities") %>%
+  ggplot(aes(x = Date, y = Change, fill = ifelse(Change >= 0, "Positive", "Negative"))) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Positive" = "Green", "Negative" = "Red"), name = NULL) +  
+  labs(x = NULL) +  
+  ggtitle("Utilities") +
+  theme_minimal() + theme(legend.position = "none")
+
+Utilties_change <- ggplotly(Utilities_change)
+
+```
+
+
+```{r, echo=FALSE}
+
+Tech_change 
+
+Fin_change 
+
+Health_change 
+
+Discretionary_change 
+
+Industrials_change 
+
+Communications_change
+
+Staples_change 
+
+Energy_change 
+
+RealEstate_change 
+
+Materials_change 
+
+Utilities_change 
+
+```
+
+# COMPUSTAT Pull 
+
+```{r}
+
+# COMPUSTAT_Pull <- haven::read_dta("data/t0kpnm2ibxmuhcwd.dta")
+
+# saveRDS(COMPUSTAT_Pull, file = "COMPUSTAT_DATA.Rda") 
+
+COMPUSTAT_Pull <- readRDS(file = "data/COMPUSTAT_DATA.Rda")
+
+#ticlist <- unique(COMPUSTAT_Pull$tic)
+
+
+# COMPUSTAT_Updated <- tidyquant::tq_get(ticlist, from = "2000-01-01") #%>%
+#   dplyr::rename_all(tools::toTitleCase) %>%
+#   # Convert to xts to adjust Open-High-Low-Close Prices for splits and dividends
+#   timetk::tk_xts(date_var = Date) %>%
+#   quantmod::adjustOHLC(.,use.Adjusted = TRUE) %>%
+#   timetk::tk_tbl(rename_index = "Date") %>%
+#   dplyr::select(-Adjusted) %>%
+#   dplyr::mutate(across(where(is.numeric), round, 2)) %>% 
+#   dplyr::rename(date = Date)
+  
+# saveRDS(COMPUSTAT_Updated, file = "COMPUSTAT_UPDATED.Rda") 
+
+
+# OHLC <- function(data) {
+#   Symbol <- (data$Symbol)[1]
+#   
+#   data %>%
+#     timetk::tk_xts(date_var = Date) %>%
+#     quantmod::adjustOHLC(., use.Adjusted = TRUE) %>%
+#     timetk::tk_tbl(rename_index = "Date") %>%
+#     dplyr::select(-Adjusted) %>%
+#     dplyr::mutate(across(where(is.numeric), round, 2)) %>%
+#     dplyr::rename(date = Date) %>%
+#     mutate(Ticker = Symbol)
+# }
+# 
+# # Adjust OHLC for each stock
+# COMPUSTAT_Updatedadj <- COMPUSTAT_Updated %>%
+#   dplyr::rename_all(tools::toTitleCase) %>%
+#   split(.$Symbol) %>% 
+#   map(OHLC) %>% 
+#   bind_rows()
+  
+# COMPUSTAT_Updatedadj <- COMPUSTAT_Updatedadj %>% 
+#   rename(Symbol = Ticker)
+
+# saveRDS(COMPUSTAT_Updatedadj, file = "COMPUSTAT_UPDATED.Rda") 
+
+COMPUSTAT_Updated <- readRDS(file = "data/COMPUSTAT_UPDATED.Rda") %>% 
+  rename(symbol = Symbol)
+
+# Taking the industry code out COMPUSTAT Pull and putting it in the COMPUSTAT_UPDATED file 
+
+industry <- COMPUSTAT_Pull %>%
+  dplyr::select(tic, gind) %>% 
+  distinct() %>% 
+  dplyr::mutate(gind_updated = substr(gind, start = 1, stop = 2)) %>% 
+  dplyr::mutate(Industry = case_when(
+    gind_updated == 10 ~ "Energy", 
+    gind_updated == 15 ~ "Materials", 
+    gind_updated == 20 ~ "Industrials", 
+    gind_updated == 25 ~ "Discretionary", 
+    gind_updated == 30 ~ "Staples", 
+    gind_updated == 35 ~ "Healthcare", 
+    gind_updated == 40 ~ "Financials", 
+    gind_updated == 45 ~ "Infotech", 
+    gind_updated == 50 ~ "Communication", 
+    gind_updated == 55 ~ "Utilities", 
+    gind_updated == 60 ~ "Realestate"))
+
+unique(industry$gind_updated)
+
+# Adding industry to COMPUSTAT_UPDATED 
+
+industry <- industry %>%
+  dplyr::rename(symbol = tic)
+
+COMPUSTAT_Updated <- full_join(COMPUSTAT_Updated, industry, by = "symbol") 
+
+COMPUSTAT_Updated <- COMPUSTAT_Updated %>% 
+  dplyr::filter(!is.na(Industry))
+
+# Adding Shares Outstanding from COMPUSTAT_PULL to COMPUSTATE_UPDATED 
+
+COMPUSTAT_Pull <- COMPUSTAT_Pull %>%
+  dplyr::select(datadate, tic, cshoc) %>% 
+  dplyr::rename(date = datadate, 
+                symbol = tic)
+
+COMPUSTAT_Updated <- full_join(COMPUSTAT_Updated, COMPUSTAT_Pull, by = c("date" , "symbol"))
+
+COMPUSTAT_Updated <- COMPUSTAT_Updated %>% 
+  dplyr::filter(!is.na(Open)) %>% 
+  dplyr::group_by(symbol) %>% 
+  mutate(cshoc = ifelse(is.na(cshoc), lag(cshoc), cshoc))
+
+
+# Pulling financial metrics for these companies 
+
+Financials <- read_csv("data/Financials.csv")
+
+Financials <- Financials %>% 
+  dplyr::rename(Shillers_PE = CAPEI, 
+                PE = pe_exi, 
+                Div_Pay_Ratio = dpr, 
+                Gross_Profit_Margin = gpm, 
+                Return_Equity = roe, 
+                Cash_Flow_to_Debt = cash_debt, 
+                Total_Debt_Equity = de_ratio, 
+                Interest_Coverage_Ratio = intcov_ratio, 
+                Current_Ratio = curr_ratio, 
+                PEG = PEG_trailing, 
+                symbol = TICKER) %>% 
+  dplyr::select(-permno, -adate)
+
+Financials <- Financials %>% 
+  mutate(qdate = as.Date(qdate, format = '%m/%d/%Y'),
+         public_date = as.Date(public_date, format = '%m/%d/%Y')) %>% 
+  mutate(date = public_date) %>%
+  group_by(symbol) %>% 
+  fill(colnames(Financials), .direction = "down") 
+
+
+COMPUSTAT_Updated <- COMPUSTAT_Updated %>% 
+  filter(symbol %in% Financials$symbol)
+
+COMPUSTAT_Updated_w <- full_join(COMPUSTAT_Updated, Financials, by = c("symbol", "date")) %>% 
+  group_by(symbol) %>%
+  fill(colnames(Financials), .direction = "down") %>%
+  ungroup() 
+
+#########################
+
+#RDS save location
+saveRDS(COMPUSTAT_Updated_w, file = "COMPUSTAT_FinBind.Rda") 
+
+COMPUSTAT_Updated_w <- readRDS(file = "COMPUSTAT_FinBind.Rda")
+
+##########################
+
+
+COMPUSTAT_Updated_w <- COMPUSTAT_Updated_w %>% 
+  drop_na()
+  
+
+
+ratioList <- colnames(Financials)[3:12]
+
+
+ratioAvg <- COMPUSTAT_Updated_w %>% 
+  group_by(Industry, date) %>%
+  summarise(across(all_of(ratioList), mean, .names = "avg{.col}"))
+
+
+# for all industries
+# if pe is low and debt to equity is low ~ 1, else 0
+# high gross profit margin ~ 1, else 0
+# higher int cov. ~ 1, else 0
+# high div payout ~ -1, else 0
+# high cash flow to debt ~ 1, else 0
+# high return on equity ~ 1, else 0
+# PEG lower ~ 1, else 0
+
+
+COMPUSTAT_Updated_w <- COMPUSTAT_Updated_w %>%
+  mutate(
+    sigPEDE = case_when(
+      PE < avgPE & Total_Debt_Equity < avgTotal_Debt_Equity ~ 1,
+      TRUE ~ 0),
+    sigGPM = case_when(
+      Gross_Profit_Margin > avgGross_Profit_Margin ~ 1,
+      TRUE ~ 0),
+    sigIntCov = case_when(
+      Interest_Coverage_Ratio > avgInterest_Coverage_Ratio ~ 1,
+      TRUE ~ 0),
+    sigDivPayout = case_when(
+      Div_Pay_Ratio > avgDiv_Pay_Ratio ~ -1,
+      TRUE ~ 0),
+    sigCFtoD = case_when(
+      Cash_Flow_to_Debt > avgCash_Flow_to_Debt ~ 1,
+      TRUE ~ 0),
+    sigROE = case_when(
+      Return_Equity > avgReturn_Equity ~ 1,
+      TRUE ~ 0),
+    sigPEG = case_when(
+      PEG < avgPEG ~ 1,
+      TRUE ~ 0)) %>% 
+  mutate(sigSum = sigPEDE + sigGPM + sigIntCov + sigDivPayout + sigCFtoD + sigROE + sigPEG)
+  
+
+COMPUSTAT_Updated_w <- COMPUSTAT_Updated_w %>% 
+  filter(date > '2000-12-01') %>% 
+  mutate(quarter = paste0(year(date), "-", quarter(date))) %>%
+  group_by(quarter, symbol) %>%
+  slice(max(row_number()),
+        min(row_number())) %>%
+  ungroup() %>%
+  group_by(symbol) %>% 
+  mutate(qOpen = lag(Open)) %>%
+  group_by(quarter, symbol) 
+  
+  
+colnames(COMPUSTAT_Updated_w)
+
+topThirdComp <- COMPUSTAT_Updated_w %>%
+  group_by(Industry, date) %>%
+  arrange(desc(sigSum), .by_group = TRUE) %>%  
+  mutate(ntileSum = ntile(sigSum, 3)) %>%
+  ungroup() %>% 
+  filter(date > '2000-12-01')
+
+
+topThirdComp %>% 
+  filter(Industry == 'Communication') %>% 
+  group_by(symbol) 
+
+
+  
+```
+
+### Summurise ratios by year
+
+
+
+
+
+
