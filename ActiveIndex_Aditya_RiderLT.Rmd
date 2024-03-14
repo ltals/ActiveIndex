@@ -395,9 +395,9 @@ COMPUSTAT_Updated_w <- full_join(COMPUSTAT_Updated, Financials, by = c("symbol",
 #########################
 
 #RDS save location
-saveRDS(COMPUSTAT_Updated_w, file = "COMPUSTAT_FinBind.Rda") 
-
-COMPUSTAT_Updated_w <- readRDS(file = "COMPUSTAT_FinBind.Rda")
+# saveRDS(COMPUSTAT_Updated_w, file = "COMPUSTAT_FinBind.Rda") 
+# 
+# COMPUSTAT_Updated_w <- readRDS(file = "COMPUSTAT_FinBind.Rda")
 
 ##########################
 
@@ -413,6 +413,11 @@ ratioList <- colnames(Financials)[3:12]
 ratioAvg <- COMPUSTAT_Updated_w %>% 
   group_by(Industry, date) %>%
   summarise(across(all_of(ratioList), mean, .names = "avg{.col}"))
+
+COMPUSTAT_Updated_w <- full_join(COMPUSTAT_Updated_w, ratioAvg, by = c("Industry", "date")) %>% 
+  group_by(symbol) %>%
+  fill(colnames(Financials), .direction = "down") %>%
+  ungroup() 
 
 
 # for all industries
@@ -455,29 +460,143 @@ COMPUSTAT_Updated_w <- COMPUSTAT_Updated_w %>%
   filter(date > '2000-12-01') %>% 
   mutate(quarter = paste0(year(date), "-", quarter(date))) %>%
   group_by(quarter, symbol) %>%
-  slice(max(row_number()),
-        min(row_number())) %>%
+  filter(date == min(date) | date == max(date)) %>%
   ungroup() %>%
   group_by(symbol) %>% 
-  mutate(qOpen = lag(Open)) %>%
-  group_by(quarter, symbol) 
+  mutate(qOpen = lag(Open),
+         qBegin_cshoc = lag(cshoc)) %>%
+  group_by(quarter, symbol) %>%
+  filter(date == max(date)) %>% 
+  drop_na()
   
-  
-colnames(COMPUSTAT_Updated_w)
+
 
 topThirdComp <- COMPUSTAT_Updated_w %>%
+  group_by(Industry, date) %>%  
+  mutate(ntileSum = ntile(sigSum, 3)) %>%
+  ungroup() %>% 
+  filter(date > '2000-12-01') %>% 
+  filter(ntileSum == 3)
+
+
+topThirdComp %>% 
+  filter(Industry == 'Industrials') %>% 
+  group_by(symbol) %>% 
+  mutate(logRet = log(Close/qOpen)) %>% 
+  ungroup() %>% 
+  summarise(sum(logRet))
+
+COMPUSTAT_Updated_w %>%
   group_by(Industry, date) %>%
   arrange(desc(sigSum), .by_group = TRUE) %>%  
   mutate(ntileSum = ntile(sigSum, 3)) %>%
   ungroup() %>% 
-  filter(date > '2000-12-01')
+  filter(date > '2000-12-01') %>% 
+  filter(Industry == 'Industrials') %>% 
+  group_by(symbol) %>% 
+  mutate(logRet = log(Close/qOpen)) %>% 
+  ungroup() %>% 
+  summarise(sum(logRet))
 
 
 topThirdComp %>% 
-  filter(Industry == 'Communication') %>% 
-  group_by(symbol) 
+  filter(Industry == 'Industrials') %>% 
+  group_by(symbol) %>% 
+  mutate(logRet = log(Close/qOpen)) %>% 
+  ungroup() %>% 
+  summarise(mean(logRet))
+
+test2 <- COMPUSTAT_Updated_w %>%
+  group_by(Industry, date) %>%  
+  mutate(ntileSum = ntile(sigSum, 3)) %>%
+  ungroup() %>% 
+  filter(date > '2000-12-01')  %>% 
+  group_by(symbol) %>% 
+  mutate(logRet = log(Close/qOpen)) %>% 
+  ungroup() 
 
 
+COMPUSTAT_Updated_w %>%
+  arrange(date) %>% 
+  group_by(Industry, date)  %>%  
+  filter(Industry == "Materials") %>% 
+  mutate(ntileSum = ntile(sigSum, 3)) %>%
+  ungroup() %>% 
+  filter(date > '2000-12-01') %>% 
+  mutate(QBeginMrktCap = qOpen*qBegin_cshoc) %>% 
+  ungroup() %>% 
+  group_by(date) %>% 
+  mutate(qBeginSumMrktCap = sum(QBeginMrktCap),
+         weight = QBeginMrktCap/qBeginSumMrktCap) %>% 
+  group_by(symbol) %>% 
+  mutate(logRet = log(Close/qOpen)) %>% 
+  mutate(weightedLogRet = logRet*weight) %>% 
+  group_by(date) %>% 
+  filter(symbol == "AGI")
+
+sectorList <- unique(COMPUSTAT_Updated_w$Industry)
+
+
+qRetSectorFiltered <- function(sector){
+  COMPUSTAT_Updated_w %>%
+  arrange(date) %>%
+  filter(symbol != "AGI") %>% 
+  group_by(Industry, date)  %>%  
+  filter(Industry == sector) %>% 
+  mutate(ntileSum = ntile(sigSum, 3)) %>%
+  ungroup() %>% 
+  filter(date > '2000-12-01') %>% 
+  filter(ntileSum == 3) %>% 
+  mutate(QBeginMrktCap = qOpen*qBegin_cshoc) %>% 
+  ungroup() %>% 
+  group_by(date) %>% 
+  mutate(qBeginSumMrktCap = sum(QBeginMrktCap),
+         weight = QBeginMrktCap/qBeginSumMrktCap) %>% 
+  group_by(symbol) %>% 
+  mutate(logRet = log(Close/qOpen)) %>% 
+  mutate(weightedLogRet = logRet*weight) %>% 
+  group_by(date) %>% 
+  summarise(qLogRet = sum(weightedLogRet)) %>% 
+  mutate(sector = sector)
+}
+
+retBySectorFiltered <- data.frame()
+
+for (sector in sectorList) {
+  retBySectorFiltered <- rbind(retBySectorFiltered, qRetSectorFiltered(sector))
+}
+  
+
+qRetSector <- function(sector){
+  COMPUSTAT_Updated_w %>%
+  arrange(date) %>%
+  filter(symbol != "AGI") %>% 
+  group_by(Industry, date)  %>%  
+  filter(Industry == sector) %>%
+  ungroup() %>% 
+  filter(date > '2000-12-01') %>% 
+  mutate(QBeginMrktCap = qOpen*qBegin_cshoc) %>% 
+  ungroup() %>% 
+  group_by(date) %>% 
+  mutate(qBeginSumMrktCap = sum(QBeginMrktCap),
+         weight = QBeginMrktCap/qBeginSumMrktCap) %>% 
+  group_by(symbol) %>% 
+  mutate(logRet = log(Close/qOpen)) %>% 
+  mutate(weightedLogRet = logRet*weight) %>% 
+  group_by(date) %>% 
+  summarise(qLogRet = sum(weightedLogRet)) %>% 
+  mutate(sector = sector)
+}
+
+
+retBySector <- data.frame()
+
+for (sector in sectorList) {
+  retBySector <- rbind(retBySector, qRetSector(sector))
+}
+
+retBySector %>% 
+  filter(sector == "Materials")
   
 ```
 
