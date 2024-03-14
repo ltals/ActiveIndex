@@ -1,0 +1,177 @@
+---
+title: "MasterAdjSignal"
+output: html_document
+date: "2024-03-14"
+---
+
+```{r}
+library(tidyquant)
+library(tidyr)
+library(fredr)
+library(purrr)
+library(ggplot2)
+library(rvest)
+library(readxl)
+options(scipen=999)
+library(jsonlite)
+library(tidyverse)
+library(lubridate)
+library(plotly)
+library(TTR)
+```
+
+#### To check release schdeules
+
+```{r}
+
+# # base sheet (with the release schedule numbers)
+# https://api.stlouisfed.org/fred/releases?api_key=d1ddfc3727527d3ca0b0ddebd7e9dade
+
+
+FREDrelease <- function(seriesID, apiKey, seriesName){
+  fredUrl <- sprintf("https://api.stlouisfed.org/fred/release/dates?release_id=%s&api_key=%s&file_type=json", seriesID, apiKey)
+
+  Jdata <- fromJSON(fredUrl)
+
+  seriesDf <- as.data.frame(Jdata$release_dates)
+  
+  seriesDf <- seriesDf %>%
+    mutate(seriesName = seriesName)
+  
+  return(seriesDf)
+}
+
+
+unempR <- FREDrelease(50, 'd1ddfc3727527d3ca0b0ddebd7e9dade', "UNRATE")
+
+permitR <- FREDrelease(148, 'd1ddfc3727527d3ca0b0ddebd7e9dade', "PERMIT")
+
+umcsentR <- FREDrelease(91, 'd1ddfc3727527d3ca0b0ddebd7e9dade', "UMCSENT")
+
+dgorderR <- FREDrelease(95, 'd1ddfc3727527d3ca0b0ddebd7e9dade', "DGORDER")
+
+zillowR <- FREDrelease(503, 'd1ddfc3727527d3ca0b0ddebd7e9dade', "ZillowIndex")
+
+
+```
+
+## Master Monthly Econ Data
+
+```{r}
+
+# Global geopol risk index
+gpr <- haven::read_dta('https://www.matteoiacoviello.com/gpr_files/data_gpr_export.dta')
+
+refDate <- as.Date("1985-01-01")
+
+gpr <- gpr %>% 
+  select(month, GPR) %>% 
+  drop_na() %>% 
+  mutate(date = refDate %m+% months(month - 300)) %>% 
+  select(date, value = GPR) %>% 
+  mutate(series_id = "GPR") %>% 
+  mutate(dateRel = date + months(1) + days(1)) %>% 
+  filter(date >= '2000-01-01')
+
+moMastSeriesSym <- c("HOUST", "UMCSENT", "PCE", "CPIAUCSL", "UNRATE", "USAUCSFRCONDOSMSAMID", "DGORDER")
+# "USAUCSFRCONDOSMSAMID" Zillow housing price index
+
+moMastSeries <- tidyquant::tq_get(moMastSeriesSym,
+                            get = "economic.data", 
+                            from = "2000-01-01", 
+                            to = Sys.Date()) %>%
+  rename(series_id = symbol, value = price) %>%
+  mutate(dateRel = case_when(series_id == "HOUST" ~ date + months(2) - days(1),
+                             series_id == "UMCSENT" ~ date + months(2) - days(1),
+                             series_id == "PCE" ~ date + months(2) - days(1),
+                             series_id == "CPIAUCSL" ~ date + months(2) - days(1),
+                             series_id == "UNRATE" ~ date + months(2) - days(1),
+                             series_id == "USAUCSFRCONDOSMSAMID" ~ date + months(2) - days(1),
+                             series_id == "DGORDER" ~ date + months(3) - days(1),
+                             TRUE ~ NA)) 
+
+moMastSeries <- rbind(moMastSeries, gpr)
+
+moMastSeries <- moMastSeries %>%
+  mutate(monthRel = format(dateRel, "%m-%Y")) %>%
+  mutate(quarterRel = paste0(year(dateRel), "-", quarter(dateRel))) %>% 
+  group_by(series_id) %>% 
+  mutate(logDeltaMo = log(value/lag(value)),
+         twoMA = rollapply(value, 2, mean, fill = NA, align = "right"),
+         fiveMA = rollapply(value, 5, mean, fill = NA, align = "right"),
+         threeROC = ROC(value, n = 3),
+         sixROC = ROC(value, n = 6)) %>%
+  mutate(xOver = case_when(twoMA >= fiveMA  ~ 1,
+                           twoMA < fiveMA ~ -1)) %>% 
+  drop_na() %>% 
+  ungroup()
+
+
+# Final
+moMastSeries 
+
+```
+## Master Daily Interest Rate Data
+
+```{r}
+dayIntMastSeriesSym <- c("DGS3MO", "DGS2", "DGS10", "T10Y2Y")
+
+dayIntMastSeries <- tidyquant::tq_get(dayIntMastSeriesSym,
+                            get = "economic.data", 
+                            from = "2000-01-01", 
+                            to = Sys.Date()) %>%
+  rename(series_id = symbol, value = price) %>%
+  mutate(dateRel = date + 1) 
+
+dayIntMastSeries <- dayIntMastSeries %>%
+  mutate(monthRel = format(dateRel, "%m-%Y")) %>%
+  mutate(quarterRel = paste0(year(dateRel), "-", quarter(dateRel))) %>% 
+  group_by(series_id) %>% 
+  mutate(logDeltaMo = log(value/lag(value)),
+         twoMA = rollapply(value, 2, mean, fill = NA, align = "right"),
+         fiveMA = rollapply(value, 5, mean, fill = NA, align = "right"),
+         threeROC = ROC(value, n = 3),
+         sixROC = ROC(value, n = 6)) %>%
+  mutate(xOver = case_when(twoMA >= fiveMA  ~ 1,
+                           twoMA < fiveMA ~ -1)) %>% 
+  drop_na() %>% 
+  ungroup()
+ 
+# Final 
+dayIntMastSeries
+
+```
+```{r}
+dayMastPriceSym  = c("HG=F", "GC=F", "PA=F", "SI=F", "CL=F", "NG=F")
+
+
+dayMastPrice <- tidyquant::tq_get(dayMastPriceSym, 
+                            get = "stock.prices", 
+                            from = "2000-01-01", 
+                            to = Sys.Date()) %>%
+  rename(series_id = symbol) %>%
+  mutate(dateRel = date + 1) %>% 
+  select(series_id, date, value = adjusted, dateRel) %>% 
+  drop_na()
+
+
+dayMastPrice <- dayMastPrice %>%
+  mutate(monthRel = format(dateRel, "%m-%Y")) %>%
+  mutate(quarterRel = paste0(year(dateRel), "-", quarter(dateRel))) %>% 
+  group_by(series_id) %>% 
+  mutate(logDeltaMo = log(value/lag(value)),
+         twoMA = rollapply(value, 2, mean, fill = NA, align = "right"),
+         fiveMA = rollapply(value, 5, mean, fill = NA, align = "right"),
+         threeROC = ROC(value, n = 3),
+         sixROC = ROC(value, n = 6)) %>%
+  mutate(xOver = case_when(twoMA >= fiveMA  ~ 1,
+                           twoMA < fiveMA ~ -1)) %>% 
+  drop_na() %>% 
+  ungroup()
+ 
+# Final 
+dayMastPrice 
+
+```
+
+
